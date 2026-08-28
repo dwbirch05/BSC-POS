@@ -38,19 +38,20 @@ function posTemplate() {
   return `
     <div class="pos-stack">
       <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="text-dim" style="font-size:13px">Selling at</span>
-          <span class="pill" id="current-event-pill">&nbsp;</span>
-        </div>
-        <div class="field" style="margin:12px 0 0">
-          <label>Serving</label>
-          <select id="serving-select"></select>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+          <select id="serving-select" class="select-compact"></select>
+          <div style="display:flex; align-items:center; gap:8px; white-space:nowrap;">
+            <span class="text-dim" style="font-size:13px">Selling at</span>
+            <span class="pill" id="current-event-pill">&nbsp;</span>
+          </div>
         </div>
       </div>
 
       <div class="card">
-        <h3>Customer</h3>
-        <div id="customer-block"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <h3 style="margin:0">Customer</h3>
+          <div id="customer-block"></div>
+        </div>
       </div>
 
       <div class="card scan-box">
@@ -293,19 +294,13 @@ function renderCustomerBlock(container) {
   const block = qs("#customer-block", container);
   if (selectedCustomer) {
     block.innerHTML = `
-      <div class="row" style="align-items:center">
-        <div>
-          <div><strong>${escapeHtml(selectedCustomer.name)}</strong></div>
-          <div class="text-dim" style="font-size:13px">${escapeHtml(selectedCustomer.email || selectedCustomer.phone || "")}</div>
-        </div>
+      <div style="display:flex; align-items:center; gap:8px; white-space:nowrap;">
+        <span>${escapeHtml(selectedCustomer.name)}</span>
         <button class="ghost" data-action="clear-customer">Change</button>
       </div>
     `;
   } else {
-    block.innerHTML = `
-      <p class="text-dim" style="margin-top:0">Walk-in sale (no customer attached)</p>
-      <button data-action="pick-customer" style="width:100%">Add / choose customer</button>
-    `;
+    block.innerHTML = `<button class="ghost" data-action="pick-customer">Add / choose customer</button>`;
   }
 }
 
