@@ -57,3 +57,27 @@ export function debounce(fn, ms) {
     t = setTimeout(() => fn(...args), ms);
   };
 }
+
+/**
+ * Work out which event a sale should be tagged to, with no picker needed:
+ * 1. An event assigned to the signed-in user whose date range covers today wins.
+ * 2. Otherwise fall back to an unassigned event (preferring one named
+ *    `defaultName`, e.g. "Home Store"), or just the first event that exists.
+ */
+export function resolveActiveEvent(events, currentUser, defaultName) {
+  const today = new Date().toISOString().slice(0, 10);
+  const isActiveToday = (ev) => {
+    if (!ev.startDate) return false;
+    const start = ev.startDate.slice(0, 10);
+    const end = (ev.endDate || ev.startDate).slice(0, 10);
+    return today >= start && today <= end;
+  };
+
+  if (currentUser) {
+    const assigned = events.find((ev) => ev.assignedUserId === currentUser.id && isActiveToday(ev));
+    if (assigned) return assigned;
+  }
+
+  const unassigned = events.filter((ev) => !ev.assignedUserId);
+  return unassigned.find((ev) => ev.name === defaultName) || unassigned[0] || events[0] || null;
+}
