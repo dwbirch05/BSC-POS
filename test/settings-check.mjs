@@ -1,0 +1,25 @@
+import { chromium } from "playwright";
+const BASE = "http://localhost:8931";
+const errors = [];
+const browser = await chromium.launch();
+const page = await browser.newPage();
+page.on("pageerror", (err) => errors.push("pageerror: " + err.message));
+await page.goto(BASE + "/index.html");
+await page.click('button[type="submit"]');
+await page.waitForSelector("nav.tabs");
+await page.click('[data-tab="settings"]');
+await page.waitForSelector('[data-action="add-staff"]');
+await page.click('[data-action="add-staff"]');
+await page.waitForSelector("#f-name");
+await page.fill("#f-name", "Alex Staffer");
+await page.fill("#f-email", "alex@example.com");
+await page.selectOption("#f-role", "staff");
+await page.click('[data-action="save"]');
+await page.waitForSelector(".toast.success", { timeout: 3000 });
+await page.waitForTimeout(200);
+const staffRows = await page.locator("#staff-table tbody tr").count();
+console.log("STEP: staff rows =", staffRows);
+if (staffRows < 1) errors.push("Staff row not shown after adding");
+await browser.close();
+if (errors.length) { console.error(errors); process.exit(1); }
+console.log("SETTINGS CHECKS PASSED");
