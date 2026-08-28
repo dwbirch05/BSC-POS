@@ -69,24 +69,46 @@ This means: anyone signed in (you or staff) can use the app, but only an
 to be blocked from seeing cost prices or reports, that's a further rule
 change we can make once you're using it day to day.
 
-## 3. Turn on sign-in (Authentication)
+## 3. Turn on Storage (product photos)
+
+1. Left sidebar → **Build → Storage → Get started**, click through the
+   defaults (production mode, same location you picked for Firestore).
+2. Click the **Rules** tab and replace the contents with this, then click
+   **Publish**:
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /items/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+This is what lets you attach photos to a product from the Inventory screen.
+If you don't need photos yet, you can skip this step and come back to it
+later — nothing else in the app depends on it.
+
+## 4. Turn on sign-in (Authentication)
 
 1. Left sidebar → **Build → Authentication → Get started**.
 2. Click the **Sign-in method** tab, choose **Email/Password**, enable it,
    and save.
 
-## 4. Register a Web App and get your config keys
+## 5. Register a Web App and get your config keys
 
 1. Click the gear icon (top-left, next to "Project Overview") → **Project
    settings**.
 2. Scroll to **Your apps**, click the **</>** (Web) icon.
 3. Give it a nickname (e.g. "BSC POS Web"), skip Firebase Hosting for now
-   (we'll do that in step 6), click **Register app**.
+   (we'll do that in step 8), click **Register app**.
 4. You'll see a code block with a `firebaseConfig` object — copy the six
    values (`apiKey`, `authDomain`, `projectId`, `storageBucket`,
    `messagingSenderId`, `appId`).
 
-## 5. Paste your config into the app
+## 6. Paste your config into the app
 
 Open `js/config.js` in the app folder and:
 
@@ -96,7 +118,7 @@ Open `js/config.js` in the app folder and:
 
 Save the file. That's the only code change needed.
 
-## 6. Create your own login
+## 7. Create your own login
 
 1. Back in the Firebase console → **Authentication → Users → Add user**.
 2. Enter your email and choose a password. This is what you'll use to sign
@@ -105,7 +127,7 @@ Save the file. That's the only code change needed.
    "owner" (full access, including Settings → staff accounts). Make sure
    that's you — sign in as this account before adding anyone else.
 
-## 7. Put it online (Firebase Hosting)
+## 8. Put it online (Firebase Hosting)
 
 This gives you a real web address you (and staff) can open from any
 device, and is what makes the app installable like a real app.
@@ -139,7 +161,7 @@ install icon in the address bar; on a phone: "Add to Home Screen").
 Whenever you make changes to the app files later, run
 `firebase deploy --only hosting` again to publish the update.
 
-## 8. (Optional) Email receipts — EmailJS
+## 9. (Optional) Email receipts — EmailJS
 
 Printing receipts works out of the box. To also let you email a receipt
 to a customer:

@@ -1,5 +1,5 @@
 import { store } from "../store.js";
-import { formatMoney, parseMoneyToCents, escapeHtml, debounce } from "../utils.js";
+import { formatMoney, parseMoneyToCents, escapeHtml, debounce, resizeImageFile } from "../utils.js";
 import { qs, qsa, el, toast, openModal, closeModal, onAction } from "../ui.js";
 import { renderBarcodeSVG, generateSku, isCode39Encodable } from "../barcode.js";
 
@@ -67,6 +67,7 @@ export function renderInventory(container, { prefillBarcode } = {}) {
 
 function openItemModal(existing, prefillBarcode) {
   const isEdit = !!existing;
+  let images = [...(existing?.images || [])];
   const modal = openModal(`
     <h2>${isEdit ? "Edit item" : "Add item"}</h2>
     <div class="field"><label>Name</label><input id="f-name" value="${escapeHtml(existing?.name || "")}" /></div>
@@ -75,6 +76,7 @@ function openItemModal(existing, prefillBarcode) {
       <div class="field"><label>Condition / notes</label><input id="f-condition" value="${escapeHtml(existing?.condition || "")}" /></div>
     </div>
     <div class="field"><label>Description</label><textarea id="f-desc" rows="2">${escapeHtml(existing?.description || "")}</textarea></div>
+    <div class="field"><label>Tags</label><input id="f-tags" value="${escapeHtml((existing?.tags || []).join(", "))}" placeholder="signed, star wars, limited edition" /></div>
     <div class="row">
       <div class="field"><label>Cost ($)</label><input id="f-cost" value="${existing ? (existing.cost ?? 0) / 100 : ""}" /></div>
       <div class="field"><label>Price ($)</label><input id="f-price" value="${existing ? (existing.price ?? 0) / 100 : ""}" /></div>
@@ -89,12 +91,50 @@ function openItemModal(existing, prefillBarcode) {
       <p class="text-dim" id="barcode-warning" style="font-size:12px; margin:6px 0 0"></p>
     </div>
     <div id="barcode-preview"></div>
+    <div class="field">
+      <label>Photos</label>
+      <div id="image-grid" class="image-grid"></div>
+      <input type="file" id="f-images-input" accept="image/*" multiple style="margin-top:8px" />
+      <p class="text-dim" id="image-upload-status" style="font-size:12px; margin:6px 0 0"></p>
+    </div>
     <div class="modal-actions">
       ${isEdit ? `<button class="danger" data-action="delete">Delete</button>` : `<span></span>`}
       <button data-action="cancel">Cancel</button>
       <button class="primary" data-action="save">${isEdit ? "Save changes" : "Add item"}</button>
     </div>
   `);
+
+  const renderImageGrid = () => {
+    qs("#image-grid", modal).innerHTML = images.map((url, idx) => `
+      <div class="image-thumb">
+        <img src="${escapeHtml(url)}" alt="" />
+        <button type="button" class="image-remove" data-action="remove-image" data-idx="${idx}" title="Remove">✕</button>
+      </div>
+    `).join("") || `<p class="text-dim" style="font-size:13px; margin:0">No photos yet.</p>`;
+  };
+  renderImageGrid();
+
+  qs("#f-images-input", modal).addEventListener("change", async (e) => {
+    const files = [...e.target.files];
+    if (files.length === 0) return;
+    const input = e.target;
+    const status = qs("#image-upload-status", modal);
+    input.disabled = true;
+    for (const file of files) {
+      status.textContent = `Adding ${file.name}…`;
+      try {
+        const dataUrl = await resizeImageFile(file);
+        const url = await store.items.uploadImage(dataUrl);
+        images.push(url);
+        renderImageGrid();
+      } catch (err) {
+        toast(`Couldn't add ${file.name}: ` + err.message, "error");
+      }
+    }
+    status.textContent = "";
+    input.value = "";
+    input.disabled = false;
+  });
 
   const barcodeInput = qs("#f-barcode", modal);
   const updatePreview = () => {
@@ -123,6 +163,13 @@ function openItemModal(existing, prefillBarcode) {
       updatePreview();
     }
 
+    if (action === "remove-image") {
+      const idx = parseInt(e.target.dataset.idx, 10);
+      const [removed] = images.splice(idx, 1);
+      renderImageGrid();
+      if (removed) store.items.deleteImage(removed).catch(() => {});
+    }
+
     if (action === "delete") {
       if (!confirm(`Delete "${existing.name}"? This can't be undone.`)) return;
       await store.items.remove(existing.id);
@@ -142,6 +189,8 @@ function openItemModal(existing, prefillBarcode) {
         price: parseMoneyToCents(qs("#f-price", modal).value || "0"),
         quantityOnHand: parseInt(qs("#f-qty", modal).value || "0", 10),
         barcode: barcodeInput.value.trim(),
+        tags: qs("#f-tags", modal).value.split(",").map((t) => t.trim()).filter(Boolean),
+        images: [...images],
       };
       try {
         if (isEdit) {
@@ -165,6 +214,8 @@ function openItemDetail(item) {
     <h2>${escapeHtml(item.name)}</h2>
     <p class="text-dim">${escapeHtml(item.category || "")}${item.condition ? " · " + escapeHtml(item.condition) : ""}</p>
     <p>${escapeHtml(item.description || "")}</p>
+    ${item.tags?.length ? `<div style="margin-bottom:10px">${item.tags.map((t) => `<span class="pill" style="margin-right:6px">${escapeHtml(t)}</span>`).join("")}</div>` : ""}
+    ${item.images?.length ? `<div class="image-grid" style="margin-bottom:10px">${item.images.map((url) => `<div class="image-thumb"><img src="${escapeHtml(url)}" alt="" /></div>`).join("")}</div>` : ""}
     <div class="row">
       <div><label>Price</label><div>${formatMoney(item.price ?? 0)}</div></div>
       <div><label>Cost</label><div>${formatMoney(item.cost ?? 0)}</div></div>

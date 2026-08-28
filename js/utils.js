@@ -44,6 +44,34 @@ export function escapeHtml(str) {
   }[c]));
 }
 
+/**
+ * Reads an image File, downscales it to a max dimension and re-encodes it as
+ * a compressed JPEG data URL. Keeps photos small enough to store in
+ * localStorage (demo mode) and quick to upload (live mode) without asking
+ * the user to resize anything themselves first.
+ */
+export function resizeImageFile(file, { maxDim = 1280, quality = 0.82 } = {}) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+        else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Couldn't read that image file")); };
+    img.src = url;
+  });
+}
+
 /** Tiny pub/sub used by the demo store to simulate live-update listeners. */
 export class Emitter {
   constructor() { this._subs = new Set(); }

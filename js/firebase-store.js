@@ -8,7 +8,7 @@
 // inventory.js, etc.) works identically no matter which backend is active.
 // ---------------------------------------------------------------------------
 import { FIREBASE_CONFIG } from "./config.js";
-import { Emitter } from "./utils.js";
+import { Emitter, uid } from "./utils.js";
 
 const SDK_VERSION = "10.13.0";
 const BASE = `https://www.gstatic.com/firebasejs/${SDK_VERSION}`;
@@ -23,10 +23,14 @@ const {
   createUserWithEmailAndPassword,
 } = await import(`${BASE}/firebase-auth.js`);
 const { deleteApp } = await import(`${BASE}/firebase-app.js`);
+const {
+  getStorage, ref: storageRef, uploadString, getDownloadURL, deleteObject,
+} = await import(`${BASE}/firebase-storage.js`);
 
 const app = initializeApp(FIREBASE_CONFIG);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 try {
   await enableIndexedDbPersistence(db);
@@ -97,6 +101,21 @@ export const firebaseStore = {
         tx.set(counterRef, { nextSku: current + 1 }, { merge: true });
         return current;
       });
+    },
+    // Live mode: actually upload the (already-resized) image to Firebase
+    // Storage and hand back its public download URL for item.images.
+    async uploadImage(dataUrl) {
+      const path = `items/${uid()}.jpg`;
+      const ref = storageRef(storage, path);
+      await uploadString(ref, dataUrl, "data_url");
+      return getDownloadURL(ref);
+    },
+    async deleteImage(url) {
+      try {
+        await deleteObject(storageRef(storage, url));
+      } catch (err) {
+        console.warn("Couldn't delete image from Storage:", err);
+      }
     },
   },
 

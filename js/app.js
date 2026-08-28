@@ -7,6 +7,7 @@ import { renderPos } from "./views/pos.js";
 import { renderInventory } from "./views/inventory.js";
 import { renderImportStock } from "./views/import-stock.js";
 import { renderImportHistory } from "./views/import-history.js";
+import { renderImportProducts } from "./views/import-products.js";
 import { renderCustomers } from "./views/customers.js";
 import { renderEvents } from "./views/events.js";
 import { renderSales } from "./views/sales.js";
@@ -25,6 +26,7 @@ const NAV = [
     id: "inventory", label: "Inventory",
     children: [
       { id: "inventory-search", label: "Search Inventory", render: (main, opts) => renderInventory(main, opts) },
+      { id: "inventory-import-products", label: "Import Products (CSV)", render: (main) => renderImportProducts(main) },
       { id: "inventory-import", label: "Import Stock", render: (main) => renderImportStock(main) },
       { id: "inventory-import-history", label: "Import History", render: (main) => renderImportHistory(main) },
     ],

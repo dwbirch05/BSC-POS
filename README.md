@@ -47,7 +47,7 @@ to host it once you're ready to open it from more than one device:
 
 - **`GITHUB_HOSTING.md`** — GitHub Pages, all done through a website, no
   command line. Recommended if you don't already use developer tools.
-- **`FIREBASE_SETUP.md` (step 7)** — Firebase Hosting via the command
+- **`FIREBASE_SETUP.md` (step 8)** — Firebase Hosting via the command
   line. A good option if you're already following that guide for the
   database.
 
@@ -144,6 +144,25 @@ The **Reporting** tab (previously "Sales") is a dropdown:
 When adding or editing a customer you can record a delivery address (street,
 suburb, state, postcode) for anything you need to post or drop off — it
 shows on the customer's detail view alongside their purchase history.
+
+## Product photos, tags, and bulk CSV import
+
+Each item can now have tags (comma-separated in the item form) and multiple
+photos. Photos are resized in the browser before saving, so a phone photo
+doesn't bloat storage — in demo mode they're stored right in the browser; in
+live (Firebase) mode they're uploaded to Firebase Storage (see step 3 of
+`FIREBASE_SETUP.md`). These aren't used anywhere in the app yet beyond the
+item form and detail view — they're groundwork for a possible future Shopify
+integration (see the "Roadmap" notes kept in the project) so products won't
+need re-entering later.
+
+For loading a lot of products at once (e.g. an initial catalog), use
+**Inventory &rsaquo; Import Products (CSV)**: download the template, fill it
+in (or export one from a spreadsheet with matching column names), upload it,
+and review the preview — new products, updates to existing ones (matched by
+barcode), and any skipped rows are all shown before anything is saved. Safe
+to re-run later with an updated file; a barcode that already exists gets
+updated rather than duplicated.
 
 ## Barcodes
 

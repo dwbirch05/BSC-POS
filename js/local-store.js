@@ -116,6 +116,14 @@ export const localStore = {
       save(KEYS.counters, { ...c, nextSku: n + 1 });
       return n;
     },
+    // Demo mode: no real file storage, so the resized data URL *is* the
+    // stored image -- just hand it straight back so item.images can hold it.
+    async uploadImage(dataUrl) {
+      return dataUrl;
+    },
+    async deleteImage() {
+      // nothing to clean up in demo mode
+    },
   },
 
   customers: {
