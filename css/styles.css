@@ -73,9 +73,23 @@ header.topbar {
 .brand { font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 8px; }
 .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 
-nav.tabs { display: flex; gap: 4px; padding: 8px 18px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+nav.tabs { display: flex; gap: 4px; padding: 8px 18px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; position: relative; }
 nav.tabs button { background: transparent; border: 1px solid transparent; }
 nav.tabs button.active { background: var(--panel-light); border-color: var(--border); color: var(--accent); }
+
+.nav-dropdown { position: relative; }
+.nav-dropdown .caret { font-size: 10px; opacity: .7; margin-left: 2px; }
+.nav-dropdown-menu {
+  position: absolute; top: calc(100% + 4px); left: 0;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 6px; min-width: 190px; z-index: 50;
+  display: flex; flex-direction: column; gap: 2px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.35);
+}
+.nav-dropdown-menu[hidden] { display: none; }
+.nav-dropdown-menu button { text-align: left; width: 100%; background: transparent; border-color: transparent; }
+.nav-dropdown-menu button:hover { border-color: var(--border); }
+.nav-dropdown-menu button.active { background: var(--panel-light); border-color: var(--border); color: var(--accent); }
 
 .status-pill {
   display: inline-flex; align-items: center; gap: 6px;
@@ -118,8 +132,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
 /* ---- POS screen ---- */
-.pos-layout { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 900px) { .pos-layout { grid-template-columns: 1fr; } }
+.pos-stack { max-width: 640px; margin: 0 auto; }
 .scan-box input { font-size: 18px; padding: 14px; }
 .cart-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .cart-item .name { flex: 1; }

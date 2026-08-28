@@ -1,6 +1,6 @@
 import { store } from "../store.js";
-import { formatMoney, formatDate, escapeHtml } from "../utils.js";
-import { qs, toast, openModal, closeModal, onAction } from "../ui.js";
+import { formatMoney, formatDate, escapeHtml, getAssignedUserIds } from "../utils.js";
+import { qs, qsa, toast, openModal, closeModal, onAction } from "../ui.js";
 
 let unsubscribe = null;
 
@@ -12,7 +12,7 @@ export function renderEvents(container) {
         <h2 style="margin:0">Events &amp; shows</h2>
         <button class="primary" data-action="add-event">+ Add event</button>
       </div>
-      <p class="text-dim">Set the dates and who's running each event here — the POS screen then tags sales to the right event automatically, based on who's signed in and today's date.</p>
+      <p class="text-dim">Set the dates and who's running each event here — the POS screen then tags sales to the right event automatically, based on who's signed in and today's date. You can assign more than one person to the same event.</p>
       <div id="event-table"></div>
     </div>
   `;
@@ -28,12 +28,13 @@ export function renderEvents(container) {
           ${events.map((ev) => {
             const sales = store.sales.forEvent(ev.id);
             const revenue = sales.reduce((sum, s) => sum + s.total, 0);
-            const runner = ev.assignedUserId ? store.users.list().find((u) => u.id === ev.assignedUserId) : null;
+            const allUsers = store.users.list();
+            const runners = getAssignedUserIds(ev).map((id) => allUsers.find((u) => u.id === id)).filter(Boolean);
             return `
             <tr>
               <td>${escapeHtml(ev.name)}${ev.location ? `<div class="text-dim" style="font-size:12px">${escapeHtml(ev.location)}</div>` : ""}</td>
               <td class="text-dim">${ev.startDate ? formatDate(ev.startDate) : "Ongoing"}${ev.endDate && ev.endDate !== ev.startDate ? " – " + formatDate(ev.endDate) : ""}</td>
-              <td>${runner ? escapeHtml(runner.name) : `<span class="text-dim">Unassigned (default)</span>`}</td>
+              <td>${runners.length ? runners.map((r) => escapeHtml(r.name)).join(", ") : `<span class="text-dim">Unassigned (default)</span>`}</td>
               <td>${sales.length}</td>
               <td>${formatMoney(revenue)}</td>
               <td style="text-align:right"><button class="ghost" data-action="edit-event" data-id="${ev.id}">Edit</button></td>
@@ -54,6 +55,7 @@ export function renderEvents(container) {
 function openEventModal(existing) {
   const isEdit = !!existing;
   const users = store.users.list();
+  const assignedIds = existing ? getAssignedUserIds(existing) : [];
   const modal = openModal(`
     <h2>${isEdit ? "Edit event" : "Add event"}</h2>
     <div class="field"><label>Name</label><input id="f-name" value="${escapeHtml(existing?.name || "")}" placeholder="e.g. Brisbane Comic Con 2026" /></div>
@@ -64,12 +66,18 @@ function openEventModal(existing) {
     </div>
     <div class="field">
       <label>Who's running it</label>
-      <select id="f-user">
-        <option value="">Unassigned (used as the default/fallback event)</option>
-        ${users.map((u) => `<option value="${u.id}" ${existing?.assignedUserId === u.id ? "selected" : ""}>${escapeHtml(u.name)}</option>`).join("")}
-      </select>
+      <div style="display:flex; flex-direction:column; gap:8px; max-height:180px; overflow:auto; border:1px solid var(--border); border-radius:var(--radius); padding:12px;">
+        ${users.length === 0
+          ? `<span class="text-dim" style="font-size:13px">No staff added yet — add people in Settings first.</span>`
+          : users.map((u) => `
+            <label style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
+              <input type="checkbox" class="f-user-checkbox" value="${u.id}" style="width:auto" ${assignedIds.includes(u.id) ? "checked" : ""} />
+              ${escapeHtml(u.name)}
+            </label>
+          `).join("")}
+      </div>
       <p class="text-dim" style="font-size:12px; margin:6px 0 0">
-        When this person is signed in on the dates above, their POS sales are tagged to this event automatically — no picking an event at checkout.
+        Tick everyone working this event. When any of them is signed in on the dates above, their POS sales are tagged to this event automatically — no picking at checkout. Leave everyone unticked to use this as the default/fallback event.
       </p>
     </div>
     <div class="field"><label>Notes</label><textarea id="f-notes" rows="2">${escapeHtml(existing?.notes || "")}</textarea></div>
@@ -90,15 +98,13 @@ function openEventModal(existing) {
     if (action === "save") {
       const name = qs("#f-name", modal).value.trim();
       if (!name) { toast("Enter an event name", "error"); return; }
-      const userId = qs("#f-user", modal).value;
-      const assignedUser = users.find((u) => u.id === userId);
+      const assignedUserIds = qsa(".f-user-checkbox", modal).filter((cb) => cb.checked).map((cb) => cb.value);
       const data = {
         name,
         location: qs("#f-location", modal).value.trim(),
         startDate: qs("#f-start", modal).value || null,
         endDate: qs("#f-end", modal).value || null,
-        assignedUserId: userId || null,
-        assignedUserName: assignedUser?.name || null,
+        assignedUserIds,
         notes: qs("#f-notes", modal).value.trim(),
       };
       if (isEdit) await store.events.update(existing.id, data);

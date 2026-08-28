@@ -24,6 +24,7 @@ export function renderReceiptHtml(sale) {
       <hr/>
       <div class="line total"><span>Total</span><span>${formatMoney(sale.total)}</span></div>
       <div class="line" style="font-size:12px"><span>Paid via</span><span>${escapeHtml(sale.paymentMethod)}</span></div>
+      ${sale.staffName ? `<div class="line" style="font-size:12px"><span>Served by</span><span>${escapeHtml(sale.staffName)}</span></div>` : ""}
       <hr/>
       <div style="text-align:center;font-size:12px">Thank you!</div>
     </div>

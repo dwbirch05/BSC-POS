@@ -22,8 +22,9 @@ internet dependency, no setup.
    it to be served over `http://` or `https://`, not opened as a bare
    `file://` path.)
 2. Click "Sign in" (any email works in demo mode).
-3. Add an item in **Inventory** (try "Generate SKU" to get a printable
-   barcode), then go to **POS** and type/scan that barcode to try a sale.
+3. Add an item in **Inventory &rsaquo; Search Inventory** (try "Generate SKU"
+   to get a printable barcode), then go to **POS** and type/scan that
+   barcode to try a sale.
 
 Demo-mode data only lives in that one browser — it won't show up on your
 phone, and clearing your browser data clears it. That's fine for trying
@@ -39,6 +40,20 @@ supports real staff logins. It's free for a shop this size.
 Follow **`FIREBASE_SETUP.md`** for the exact step-by-step — it takes about
 15 minutes and doesn't require any coding.
 
+## Putting it online
+
+The app is just static files, so there are a couple of free, simple ways
+to host it once you're ready to open it from more than one device:
+
+- **`GITHUB_HOSTING.md`** — GitHub Pages, all done through a website, no
+  command line. Recommended if you don't already use developer tools.
+- **`FIREBASE_SETUP.md` (step 7)** — Firebase Hosting via the command
+  line. A good option if you're already following that guide for the
+  database.
+
+Either way, the database setup in `FIREBASE_SETUP.md` is separate and
+still needed for real (non-demo) data.
+
 ## Project structure
 
 ```
@@ -52,9 +67,14 @@ js/local-store.js          Demo-mode backend (localStorage)
 js/firebase-store.js       Live-mode backend (Firestore + Auth)
 js/barcode.js               Code 39 barcode generator (no external library)
 js/receipt.js               Receipt rendering, printing, emailing
-js/app.js                   Navigation shell, login gate, offline indicator
-js/views/*.js                One file per screen (POS, Inventory, Customers,
-                              Events, Sales, Settings, Login)
+js/app.js                   Navigation shell (incl. Inventory/Reporting dropdowns),
+                              login gate, offline indicator
+js/checkin.js                Tracks who's verified themselves on this device today
+                              (powers the POS "Serving" switcher)
+js/views/*.js                One file per screen: POS, Inventory (Search /
+                              Import Stock / Import History), Customers, Events,
+                              Reporting (Sales History / Product History),
+                              Settings, Login
 icons/                       PWA icons
 test/                        Playwright checks used to verify the app (optional,
                               needs `npm install playwright` — not required to
@@ -77,6 +97,53 @@ There is **no build step**. Every file is plain HTML/CSS/JavaScript
 - The app itself (the screens, not the data) is cached by the service
   worker (`sw.js`) so it opens even with no signal at all, once you've
   loaded it at least once.
+
+## Events on the POS screen
+
+There's no event picker on the POS screen — it's automatic. In the
+**Events** tab, when you add or edit an event you set its dates and who's
+running it. When that person is signed in on those dates, their sales are
+tagged to that event with nothing to select at checkout (you'll see which
+event it resolved to in the "Selling at" pill on the POS screen). If no
+dated event matches today, sales fall back to whichever event is left
+unassigned (Home Store, by default).
+
+## Who's serving (POS staff switcher)
+
+Under the event pill on the POS screen there's a **Serving** dropdown. It
+lists everyone who has verified themselves on *this device today* — normally
+just whoever signed in this morning. If two people are working the same
+till, the second person doesn't need to log out and back in: pick
+**"+ Check in someone else…"**, choose their name, and (in live/Firebase
+mode) enter their password once. After that they stay in the switcher for
+the rest of the day on that device, and every sale records who was actually
+serving. Demo mode skips the password since there's no real login to check.
+
+## Inventory: Search, Import Stock, Import History
+
+The **Inventory** tab is a dropdown:
+- **Search Inventory** — the existing add/edit/view stock screen.
+- **Import Stock** — log a delivery: pick the date, scan or type each
+  product's code, and enter the cost and quantity you received. Add as many
+  products as the order contains, then **Complete import**. This updates
+  the item's quantity on hand; the cost you log is kept for your records
+  only and never overwrites the item's stored cost or price.
+- **Import History** — every past import batch, with the products, quantities
+  and cost logged at the time.
+
+## Reporting: Sales History, Product History
+
+The **Reporting** tab (previously "Sales") is a dropdown:
+- **Sales History** — every individual sale, filterable by event and date.
+- **Product History** — an aggregate table: for every product, total units
+  sold, total revenue, and current stock on hand, so you can see what's
+  actually moving.
+
+## Customer delivery addresses
+
+When adding or editing a customer you can record a delivery address (street,
+suburb, state, postcode) for anything you need to post or drop off — it
+shows on the customer's detail view alongside their purchase history.
 
 ## Barcodes
 

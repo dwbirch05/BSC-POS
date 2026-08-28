@@ -7,7 +7,9 @@ await page.click('button[type="submit"]');
 await page.waitForSelector("nav.tabs");
 
 // Complete a quick sale to get a receipt modal open
-await page.click('[data-tab="inventory"]');
+await page.click('[data-nav-toggle="inventory"]');
+await page.click('[data-nav="inventory-search"]');
+await page.waitForSelector('[data-action="add-item"]');
 await page.click('[data-action="add-item"]');
 await page.fill("#f-name", "Film Cell - Empire Strikes Back");
 await page.fill("#f-price", "45");
@@ -17,7 +19,7 @@ const barcode = await page.inputValue("#f-barcode");
 await page.click('[data-action="save"]');
 await page.waitForTimeout(300);
 
-await page.click('[data-tab="pos"]');
+await page.click('[data-nav="pos"]');
 await page.fill("#barcode-input", barcode);
 await page.press("#barcode-input", "Enter");
 await page.click('[data-action="set-payment"][data-method="Card"]');

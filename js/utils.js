@@ -9,10 +9,11 @@ export function nowIso() {
 }
 
 export function formatMoney(cents) {
-  return (cents / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
+  const amount = (cents / 100).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
+  return `$${amount}`;
 }
 
 /** Parse a user-typed price string ("12.50", "$12.5") into integer cents. */
@@ -59,8 +60,20 @@ export function debounce(fn, ms) {
 }
 
 /**
+ * The list of user IDs assigned to run an event. Reads the current
+ * `assignedUserIds` array, falling back to the older single `assignedUserId`
+ * field so events created before multi-select shipped still work.
+ */
+export function getAssignedUserIds(event) {
+  if (Array.isArray(event.assignedUserIds)) return event.assignedUserIds;
+  if (event.assignedUserId) return [event.assignedUserId];
+  return [];
+}
+
+/**
  * Work out which event a sale should be tagged to, with no picker needed:
- * 1. An event assigned to the signed-in user whose date range covers today wins.
+ * 1. An event assigned to the signed-in user (one of possibly several people
+ *    on that event) whose date range covers today wins.
  * 2. Otherwise fall back to an unassigned event (preferring one named
  *    `defaultName`, e.g. "Home Store"), or just the first event that exists.
  */
@@ -74,10 +87,10 @@ export function resolveActiveEvent(events, currentUser, defaultName) {
   };
 
   if (currentUser) {
-    const assigned = events.find((ev) => ev.assignedUserId === currentUser.id && isActiveToday(ev));
+    const assigned = events.find((ev) => getAssignedUserIds(ev).includes(currentUser.id) && isActiveToday(ev));
     if (assigned) return assigned;
   }
 
-  const unassigned = events.filter((ev) => !ev.assignedUserId);
+  const unassigned = events.filter((ev) => getAssignedUserIds(ev).length === 0);
   return unassigned.find((ev) => ev.name === defaultName) || unassigned[0] || events[0] || null;
 }

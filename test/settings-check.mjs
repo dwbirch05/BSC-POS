@@ -7,7 +7,7 @@ page.on("pageerror", (err) => errors.push("pageerror: " + err.message));
 await page.goto(BASE + "/index.html");
 await page.click('button[type="submit"]');
 await page.waitForSelector("nav.tabs");
-await page.click('[data-tab="settings"]');
+await page.click('[data-nav="settings"]');
 await page.waitForSelector('[data-action="add-staff"]');
 await page.click('[data-action="add-staff"]');
 await page.waitForSelector("#f-name");

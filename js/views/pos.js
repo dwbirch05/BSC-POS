@@ -2,20 +2,24 @@ import { store } from "../store.js";
 import { formatMoney, parseMoneyToCents, escapeHtml, debounce, resolveActiveEvent } from "../utils.js";
 import { qs, qsa, toast, openModal, closeModal, onAction } from "../ui.js";
 import { renderReceiptHtml, printReceipt, emailReceipt } from "../receipt.js";
+import { getCheckedInToday, markCheckedIn } from "../checkin.js";
 import { DEFAULT_EVENT_NAME } from "../config.js";
 
 let cart = []; // [{itemId, name, priceAtSale, qty, barcode}]
 let selectedCustomer = null; // {id, name, email} | null
 let paymentMethod = null;
+let actingStaffId = null; // who's actually serving this sale (may differ from the signed-in account)
 let unsubscribers = [];
 
 export function renderPos(container, { goToInventory } = {}) {
   cleanup();
+  actingStaffId = store.auth.currentUser()?.id || null;
   container.innerHTML = posTemplate();
   wireUp(container, { goToInventory });
   const offEvents = store.events.onChange(() => refreshCurrentEvent(container));
   const offItems = store.items.onChange(() => {}); // keep cache warm for lookups
-  unsubscribers = [offEvents, offItems];
+  const offUsers = store.users.onChange ? store.users.onChange(() => renderServingSelect(container)) : null;
+  unsubscribers = [offEvents, offItems, offUsers];
 }
 
 /** The event this sale will be tagged to — no picker, resolved from who's
@@ -32,43 +36,41 @@ function cleanup() {
 
 function posTemplate() {
   return `
-    <div class="pos-layout">
-      <div>
-        <div class="card scan-box">
-          <label>Scan or type a barcode / SKU, then press Enter</label>
-          <input id="barcode-input" type="text" placeholder="Scan here..." autocomplete="off" autofocus />
+    <div class="pos-stack">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span class="text-dim" style="font-size:13px">Selling at</span>
+          <span class="pill" id="current-event-pill">&nbsp;</span>
         </div>
-
-        <div class="card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <h3 style="margin:0">Cart</h3>
-            <button class="ghost" id="camera-scan-btn" title="Scan with camera">📷 Camera scan</button>
-          </div>
-          <div id="cart-list"></div>
-          <div class="subtotal-row"><span>Total</span><span id="subtotal">${formatMoney(0)}</span></div>
+        <div class="field" style="margin:12px 0 0">
+          <label>Serving</label>
+          <select id="serving-select"></select>
         </div>
       </div>
 
-      <div>
-        <div class="card">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span class="text-dim" style="font-size:13px">Selling at</span>
-            <span class="pill" id="current-event-pill">&nbsp;</span>
-          </div>
-        </div>
+      <div class="card">
+        <h3>Customer</h3>
+        <div id="customer-block"></div>
+      </div>
 
-        <div class="card">
-          <h3>Customer</h3>
-          <div id="customer-block"></div>
-        </div>
+      <div class="card scan-box">
+        <label>Scan or type a barcode / SKU, then press Enter</label>
+        <input id="barcode-input" type="text" placeholder="Scan here..." autocomplete="off" autofocus />
+        <button class="ghost" id="camera-scan-btn" title="Scan with camera" style="margin-top:10px">📷 Camera scan</button>
+      </div>
 
-        <div class="card">
-          <h3>Payment method</h3>
-          <div class="pay-methods" id="pay-methods">
-            ${["Cash", "Card", "Other"].map((m) => `<button data-action="set-payment" data-method="${m}">${m}</button>`).join("")}
-          </div>
-          <button class="primary" id="complete-sale-btn" style="width:100%; font-size:16px; padding:14px;">Complete Sale</button>
+      <div class="card">
+        <h3 style="margin:0 0 10px">Cart</h3>
+        <div id="cart-list"></div>
+        <div class="subtotal-row"><span>Total</span><span id="subtotal">${formatMoney(0)}</span></div>
+      </div>
+
+      <div class="card">
+        <h3>Payment method</h3>
+        <div class="pay-methods" id="pay-methods">
+          ${["Cash", "Card", "Other"].map((m) => `<button data-action="set-payment" data-method="${m}">${m}</button>`).join("")}
         </div>
+        <button class="primary" id="complete-sale-btn" style="width:100%; font-size:16px; padding:14px;">Complete Sale</button>
       </div>
     </div>
   `;
@@ -88,6 +90,19 @@ function wireUp(container, { goToInventory }) {
 
   refreshCurrentEvent(container);
   renderCustomerBlock(container);
+  renderServingSelect(container);
+
+  qs("#serving-select", container).addEventListener("change", (e) => {
+    if (e.target.value === "__other__") {
+      openCheckInModal(container, (newId) => {
+        actingStaffId = newId;
+        renderServingSelect(container);
+      });
+      renderServingSelect(container); // snap the select back until check-in actually succeeds
+      return;
+    }
+    actingStaffId = e.target.value;
+  });
 
   onAction(container, {
     "set-payment": (btn) => {
@@ -112,6 +127,89 @@ function wireUp(container, { goToInventory }) {
 
   renderCart(container);
   barcodeInput.focus();
+}
+
+/** Who can be picked as "serving" — anyone verified on this device today,
+ * always including the person actually signed in. Picking "+ Check in
+ * someone else…" opens the verification modal instead of selecting it. */
+function renderServingSelect(container) {
+  const select = qs("#serving-select", container);
+  if (!select) return;
+  const users = store.users.list() || [];
+  const checkedIds = new Set(getCheckedInToday());
+  const me = store.auth.currentUser();
+  if (me) checkedIds.add(me.id);
+
+  const available = users.filter((u) => checkedIds.has(u.id));
+  if (me && !available.find((u) => u.id === me.id)) {
+    available.unshift({ id: me.id, name: me.name || me.email || "You" });
+  }
+
+  if (!actingStaffId || !available.find((u) => u.id === actingStaffId)) {
+    actingStaffId = me?.id || available[0]?.id || null;
+  }
+
+  select.innerHTML = `
+    ${available.map((u) => `<option value="${u.id}" ${u.id === actingStaffId ? "selected" : ""}>${escapeHtml(u.name)}</option>`).join("")}
+    <option value="__other__">+ Check in someone else…</option>
+  `;
+}
+
+/** Verify a staff member so they show up in the "serving" switcher for the
+ * rest of today on this device. Demo mode just confirms who they are; live
+ * (Firebase) mode requires their real password. */
+function openCheckInModal(container, onCheckedIn) {
+  const users = store.users.list() || [];
+  const checkedIds = new Set(getCheckedInToday());
+  const me = store.auth.currentUser();
+  if (me) checkedIds.add(me.id);
+  const candidates = users.filter((u) => !checkedIds.has(u.id));
+
+  if (candidates.length === 0) {
+    toast("Everyone with a staff account is already checked in today.", "info");
+    return;
+  }
+
+  const modal = openModal(`
+    <h2>Check in someone else</h2>
+    <p class="text-dim">They need to verify themselves once per day on this device before they can be picked as who's serving.</p>
+    <div class="field">
+      <label>Staff member</label>
+      <select id="ci-user">${candidates.map((u) => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join("")}</select>
+    </div>
+    ${store.mode === "firebase"
+      ? `<div class="field"><label>Their password</label><input id="ci-password" type="password" autocomplete="off" /></div>`
+      : `<p class="text-dim">Demo mode: no password needed to try this out.</p>`}
+    <div class="modal-actions">
+      <button data-action="cancel">Cancel</button>
+      <button class="primary" data-action="confirm">Check in</button>
+    </div>
+  `);
+
+  modal.addEventListener("click", async (e) => {
+    const action = e.target.dataset.action;
+    if (action === "cancel") closeModal();
+    if (action === "confirm") {
+      const uid = qs("#ci-user", modal).value;
+      const candidate = candidates.find((u) => u.id === uid);
+      if (!candidate) return;
+      const password = store.mode === "firebase" ? qs("#ci-password", modal).value : undefined;
+      if (store.mode === "firebase" && !password) { toast("Enter their password", "error"); return; }
+
+      const btn = qs("[data-action='confirm']", modal);
+      btn.disabled = true;
+      try {
+        const verified = await store.auth.checkInOther(candidate.email, password);
+        markCheckedIn(verified.id);
+        toast(`${verified.name} checked in`, "success");
+        closeModal();
+        onCheckedIn(verified.id);
+      } catch (err) {
+        toast("Couldn't check in: " + err.message, "error");
+        btn.disabled = false;
+      }
+    }
+  });
 }
 
 function handleScan(code, container, goToInventory) {
@@ -271,6 +369,8 @@ async function completeSale(container) {
   if (!event) { toast("No event set up yet — add one in the Events tab first", "error"); return; }
   const subtotal = cart.reduce((sum, l) => sum + l.priceAtSale * l.qty, 0);
 
+  const staff = store.users.list().find((u) => u.id === actingStaffId) || store.auth.currentUser();
+
   const btn = qs("#complete-sale-btn", container);
   btn.disabled = true;
   try {
@@ -284,7 +384,8 @@ async function completeSale(container) {
       subtotal,
       total: subtotal,
       paymentMethod,
-      staffUserId: store.auth.currentUser()?.id || null,
+      staffUserId: actingStaffId || store.auth.currentUser()?.id || null,
+      staffName: staff?.name || null,
     });
 
     // Decrement stock for each line item (best-effort; never blocks the sale).

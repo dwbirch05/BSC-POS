@@ -13,6 +13,7 @@ const KEYS = {
   customers: "bsc_customers",
   events: "bsc_events",
   sales: "bsc_sales",
+  imports: "bsc_imports",
   users: "bsc_users",
   session: "bsc_session",
   counters: "bsc_counters",
@@ -39,6 +40,7 @@ function ensureSeed() {
   if (!load(KEYS.items)) save(KEYS.items, []);
   if (!load(KEYS.customers)) save(KEYS.customers, []);
   if (!load(KEYS.sales)) save(KEYS.sales, []);
+  if (!load(KEYS.imports)) save(KEYS.imports, []);
   if (!load(KEYS.counters)) save(KEYS.counters, { nextSku: 1 });
   if (!load(KEYS.users)) {
     save(KEYS.users, [
@@ -53,6 +55,7 @@ const emitters = {
   customers: new Emitter(),
   events: new Emitter(),
   sales: new Emitter(),
+  imports: new Emitter(),
 };
 
 function makeCollection(key, emitter) {
@@ -140,6 +143,10 @@ export const localStore = {
     },
   },
 
+  imports: {
+    ...makeCollection(KEYS.imports, emitters.imports),
+  },
+
   users: {
     ...makeCollection(KEYS.users, new Emitter()),
   },
@@ -170,6 +177,15 @@ export const localStore = {
     onAuthChange(fn) {
       fn(this.currentUser());
       return this._emitter.subscribe(fn);
+    },
+    // Demo mode: no real password to check, so this just looks the person
+    // up by email so the "who's serving" switcher works the same way it
+    // will in firebase mode (where the password is genuinely verified).
+    async checkInOther(email) {
+      const users = load(KEYS.users) || [];
+      const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      if (!user) throw new Error("No staff account found with that email.");
+      return user;
     },
   },
 };

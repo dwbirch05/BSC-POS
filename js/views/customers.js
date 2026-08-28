@@ -70,6 +70,12 @@ function openCustModal(existing) {
       <div class="field"><label>Email</label><input id="f-email" type="email" value="${escapeHtml(existing?.email || "")}" /></div>
       <div class="field"><label>Phone</label><input id="f-phone" value="${escapeHtml(existing?.phone || "")}" /></div>
     </div>
+    <div class="field"><label>Delivery address</label><input id="f-street" placeholder="Street address" value="${escapeHtml(existing?.street || "")}" /></div>
+    <div class="row">
+      <div class="field"><label>Suburb</label><input id="f-suburb" value="${escapeHtml(existing?.suburb || "")}" /></div>
+      <div class="field"><label>State</label><input id="f-state" value="${escapeHtml(existing?.state || "")}" /></div>
+      <div class="field"><label>Postcode</label><input id="f-postcode" value="${escapeHtml(existing?.postcode || "")}" /></div>
+    </div>
     <div class="field"><label>Notes</label><textarea id="f-notes" rows="2">${escapeHtml(existing?.notes || "")}</textarea></div>
     <div class="modal-actions">
       ${isEdit ? `<button class="danger" data-action="delete">Delete</button>` : `<span></span>`}
@@ -92,6 +98,10 @@ function openCustModal(existing) {
         name,
         email: qs("#f-email", modal).value.trim(),
         phone: qs("#f-phone", modal).value.trim(),
+        street: qs("#f-street", modal).value.trim(),
+        suburb: qs("#f-suburb", modal).value.trim(),
+        state: qs("#f-state", modal).value.trim(),
+        postcode: qs("#f-postcode", modal).value.trim(),
         notes: qs("#f-notes", modal).value.trim(),
       };
       if (isEdit) await store.customers.update(existing.id, data);
@@ -102,12 +112,19 @@ function openCustModal(existing) {
   });
 }
 
+function formatAddress(c) {
+  const line2 = [c.suburb, c.state, c.postcode].filter(Boolean).join(" ");
+  return [c.street, line2].filter(Boolean).join(", ");
+}
+
 function openCustDetail(customer) {
   if (!customer) return;
   const sales = store.sales.forCustomer(customer.id);
+  const address = formatAddress(customer);
   const modal = openModal(`
     <h2>${escapeHtml(customer.name)}</h2>
     <p class="text-dim">${escapeHtml(customer.email || "")} ${customer.phone ? " · " + escapeHtml(customer.phone) : ""}</p>
+    ${address ? `<p><label>Delivery address</label>${escapeHtml(address)}</p>` : ""}
     ${customer.notes ? `<p>${escapeHtml(customer.notes)}</p>` : ""}
     <h3>Purchase history</h3>
     ${sales.length === 0 ? `<p class="text-dim">No purchases yet.</p>` : `

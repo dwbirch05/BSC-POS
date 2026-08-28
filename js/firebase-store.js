@@ -22,6 +22,7 @@ const {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
   createUserWithEmailAndPassword,
 } = await import(`${BASE}/firebase-auth.js`);
+const { deleteApp } = await import(`${BASE}/firebase-app.js`);
 
 const app = initializeApp(FIREBASE_CONFIG);
 const db = getFirestore(app);
@@ -35,8 +36,8 @@ try {
   console.warn("Offline persistence not enabled:", err.code || err);
 }
 
-const caches = { items: [], customers: [], events: [], sales: [], users: [] };
-const emitters = { items: new Emitter(), customers: new Emitter(), events: new Emitter(), sales: new Emitter(), users: new Emitter() };
+const caches = { items: [], customers: [], events: [], sales: [], imports: [], users: [] };
+const emitters = { items: new Emitter(), customers: new Emitter(), events: new Emitter(), sales: new Emitter(), imports: new Emitter(), users: new Emitter() };
 
 function watch(name) {
   onSnapshot(collection(db, name), (snap) => {
@@ -45,7 +46,7 @@ function watch(name) {
     emitters[name].emit();
   }, (err) => console.error(`onSnapshot(${name}) failed:`, err));
 }
-["items", "customers", "events", "sales", "users"].forEach(watch);
+["items", "customers", "events", "sales", "imports", "users"].forEach(watch);
 
 function makeCollection(name) {
   const emitter = emitters[name];
@@ -124,6 +125,10 @@ export const firebaseStore = {
     },
   },
 
+  imports: {
+    ...makeCollection("imports"),
+  },
+
   users: {
     list() { return caches.users || []; },
     onChange(fn) { return emitters.users.subscribe(fn); },
@@ -161,6 +166,23 @@ export const firebaseStore = {
         const profile = await ensureUserDoc(user);
         fn(profile);
       });
+    },
+    // Verify a staff member's password on THIS device to "check them in"
+    // for the POS switcher, without disturbing whoever is currently signed
+    // in. Uses a second, throwaway Firebase app instance to run the sign-in
+    // check, then immediately signs it out and tears it down again.
+    async checkInOther(email, password) {
+      const secondaryApp = initializeApp(FIREBASE_CONFIG, "checkin-" + Date.now());
+      const secondaryAuth = getAuth(secondaryApp);
+      try {
+        const cred = await signInWithEmailAndPassword(secondaryAuth, email, password);
+        const snap = await getDoc(doc(db, "users", cred.user.uid));
+        if (!snap.exists()) throw new Error("No profile found for this account.");
+        return { id: cred.user.uid, ...snap.data() };
+      } finally {
+        try { await signOut(secondaryAuth); } catch {}
+        try { await deleteApp(secondaryApp); } catch {}
+      }
     },
   },
 };
