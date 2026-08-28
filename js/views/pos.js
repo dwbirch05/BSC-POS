@@ -1,10 +1,8 @@
 import { store } from "../store.js";
-import { formatMoney, parseMoneyToCents, escapeHtml, debounce } from "../utils.js";
-import { qs, qsa, el, toast, openModal, closeModal, onAction } from "../ui.js";
+import { formatMoney, parseMoneyToCents, escapeHtml, debounce, resolveActiveEvent } from "../utils.js";
+import { qs, qsa, toast, openModal, closeModal, onAction } from "../ui.js";
 import { renderReceiptHtml, printReceipt, emailReceipt } from "../receipt.js";
 import { DEFAULT_EVENT_NAME } from "../config.js";
-
-const CURRENT_EVENT_KEY = "bsc_current_event_id";
 
 let cart = []; // [{itemId, name, priceAtSale, qty, barcode}]
 let selectedCustomer = null; // {id, name, email} | null
@@ -15,9 +13,16 @@ export function renderPos(container, { goToInventory } = {}) {
   cleanup();
   container.innerHTML = posTemplate();
   wireUp(container, { goToInventory });
-  const offEvents = store.events.onChange(() => refreshEventOptions(container));
+  const offEvents = store.events.onChange(() => refreshCurrentEvent(container));
   const offItems = store.items.onChange(() => {}); // keep cache warm for lookups
   unsubscribers = [offEvents, offItems];
+}
+
+/** The event this sale will be tagged to — no picker, resolved from who's
+ * signed in and today's date (see utils.js#resolveActiveEvent). Set up the
+ * mapping in the Events tab. */
+function getCurrentEvent() {
+  return resolveActiveEvent(store.events.list(), store.auth.currentUser(), DEFAULT_EVENT_NAME);
 }
 
 function cleanup() {
@@ -46,8 +51,10 @@ function posTemplate() {
 
       <div>
         <div class="card">
-          <h3>Event</h3>
-          <select id="event-select"></select>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="text-dim" style="font-size:13px">Selling at</span>
+            <span class="pill" id="current-event-pill">&nbsp;</span>
+          </div>
         </div>
 
         <div class="card">
@@ -79,11 +86,7 @@ function wireUp(container, { goToInventory }) {
 
   qs("#camera-scan-btn", container).addEventListener("click", () => cameraScan(container, goToInventory));
 
-  refreshEventOptions(container);
-  qs("#event-select", container).addEventListener("change", (e) => {
-    localStorage.setItem(CURRENT_EVENT_KEY, e.target.value);
-  });
-
+  refreshCurrentEvent(container);
   renderCustomerBlock(container);
 
   onAction(container, {
@@ -178,14 +181,14 @@ function renderCart(container) {
   qs("#subtotal", container).textContent = formatMoney(subtotal);
 }
 
-function refreshEventOptions(container) {
-  const select = qs("#event-select", container);
-  if (!select) return;
-  const events = store.events.list();
-  const savedId = localStorage.getItem(CURRENT_EVENT_KEY);
-  const current = events.find((e) => e.id === savedId) || events.find((e) => e.name === DEFAULT_EVENT_NAME) || events[0];
-  select.innerHTML = events.map((e) => `<option value="${e.id}" ${e.id === current?.id ? "selected" : ""}>${escapeHtml(e.name)}</option>`).join("");
-  if (current) localStorage.setItem(CURRENT_EVENT_KEY, current.id);
+function refreshCurrentEvent(container) {
+  const pill = qs("#current-event-pill", container);
+  if (!pill) return;
+  const event = getCurrentEvent();
+  pill.textContent = event ? event.name : "No event set up";
+  pill.title = event
+    ? "Set this up (dates + who's running it) in the Events tab."
+    : "Add an event in the Events tab first.";
 }
 
 function renderCustomerBlock(container) {
@@ -264,8 +267,8 @@ async function completeSale(container) {
   if (cart.length === 0) { toast("Cart is empty", "error"); return; }
   if (!paymentMethod) { toast("Choose a payment method", "error"); return; }
 
-  const eventId = qs("#event-select", container).value;
-  const event = store.events.get(eventId);
+  const event = getCurrentEvent();
+  if (!event) { toast("No event set up yet — add one in the Events tab first", "error"); return; }
   const subtotal = cart.reduce((sum, l) => sum + l.priceAtSale * l.qty, 0);
 
   const btn = qs("#complete-sale-btn", container);
@@ -276,8 +279,8 @@ async function completeSale(container) {
       customerId: selectedCustomer?.id || null,
       customerName: selectedCustomer?.name || null,
       customerEmail: selectedCustomer?.email || null,
-      eventId,
-      eventName: event?.name || "",
+      eventId: event.id,
+      eventName: event.name,
       subtotal,
       total: subtotal,
       paymentMethod,
