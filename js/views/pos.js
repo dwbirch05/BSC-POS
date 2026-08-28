@@ -56,8 +56,10 @@ function posTemplate() {
 
       <div class="card scan-box">
         <label>Scan or type a barcode / SKU, then press Enter</label>
-        <input id="barcode-input" type="text" placeholder="Scan here..." autocomplete="off" autofocus />
-        <button class="ghost" id="camera-scan-btn" title="Scan with camera" style="margin-top:10px">📷 Camera scan</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input id="barcode-input" type="text" placeholder="Scan here..." autocomplete="off" autofocus style="flex:1" />
+          <button class="ghost" id="camera-scan-btn" title="Scan with camera" style="flex:0 0 auto">📷 Scan</button>
+        </div>
       </div>
 
       <div class="card">
@@ -300,7 +302,7 @@ function renderCustomerBlock(container) {
       </div>
     `;
   } else {
-    block.innerHTML = `<button class="ghost" data-action="pick-customer">Add / choose customer</button>`;
+    block.innerHTML = `<button data-action="pick-customer">Add / choose customer</button>`;
   }
 }
 
