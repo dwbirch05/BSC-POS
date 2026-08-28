@@ -12,7 +12,7 @@ export function renderEvents(container) {
         <h2 style="margin:0">Events &amp; shows</h2>
         <button class="primary" data-action="add-event">+ Add event</button>
       </div>
-      <p class="text-dim">Every sale is tagged with the event selected on the POS screen, so you can see how each show performed.</p>
+      <p class="text-dim">Set the dates and who's running each event here — the POS screen then tags sales to the right event automatically, based on who's signed in and today's date.</p>
       <div id="event-table"></div>
     </div>
   `;
@@ -23,15 +23,17 @@ export function renderEvents(container) {
     if (events.length === 0) { table.innerHTML = `<div class="empty-state">No events yet.</div>`; return; }
     table.innerHTML = `
       <table>
-        <thead><tr><th>Event</th><th>Dates</th><th>Sales</th><th>Revenue</th><th></th></tr></thead>
+        <thead><tr><th>Event</th><th>Dates</th><th>Run by</th><th>Sales</th><th>Revenue</th><th></th></tr></thead>
         <tbody>
           ${events.map((ev) => {
             const sales = store.sales.forEvent(ev.id);
             const revenue = sales.reduce((sum, s) => sum + s.total, 0);
+            const runner = ev.assignedUserId ? store.users.list().find((u) => u.id === ev.assignedUserId) : null;
             return `
             <tr>
               <td>${escapeHtml(ev.name)}${ev.location ? `<div class="text-dim" style="font-size:12px">${escapeHtml(ev.location)}</div>` : ""}</td>
-              <td class="text-dim">${ev.startDate ? formatDate(ev.startDate) : ""}${ev.endDate ? " – " + formatDate(ev.endDate) : ""}</td>
+              <td class="text-dim">${ev.startDate ? formatDate(ev.startDate) : "Ongoing"}${ev.endDate && ev.endDate !== ev.startDate ? " – " + formatDate(ev.endDate) : ""}</td>
+              <td>${runner ? escapeHtml(runner.name) : `<span class="text-dim">Unassigned (default)</span>`}</td>
               <td>${sales.length}</td>
               <td>${formatMoney(revenue)}</td>
               <td style="text-align:right"><button class="ghost" data-action="edit-event" data-id="${ev.id}">Edit</button></td>
@@ -51,6 +53,7 @@ export function renderEvents(container) {
 
 function openEventModal(existing) {
   const isEdit = !!existing;
+  const users = store.users.list();
   const modal = openModal(`
     <h2>${isEdit ? "Edit event" : "Add event"}</h2>
     <div class="field"><label>Name</label><input id="f-name" value="${escapeHtml(existing?.name || "")}" placeholder="e.g. Brisbane Comic Con 2026" /></div>
@@ -59,8 +62,19 @@ function openEventModal(existing) {
       <div class="field"><label>Start date</label><input id="f-start" type="date" value="${existing?.startDate ? existing.startDate.slice(0, 10) : ""}" /></div>
       <div class="field"><label>End date</label><input id="f-end" type="date" value="${existing?.endDate ? existing.endDate.slice(0, 10) : ""}" /></div>
     </div>
+    <div class="field">
+      <label>Who's running it</label>
+      <select id="f-user">
+        <option value="">Unassigned (used as the default/fallback event)</option>
+        ${users.map((u) => `<option value="${u.id}" ${existing?.assignedUserId === u.id ? "selected" : ""}>${escapeHtml(u.name)}</option>`).join("")}
+      </select>
+      <p class="text-dim" style="font-size:12px; margin:6px 0 0">
+        When this person is signed in on the dates above, their POS sales are tagged to this event automatically — no picking an event at checkout.
+      </p>
+    </div>
     <div class="field"><label>Notes</label><textarea id="f-notes" rows="2">${escapeHtml(existing?.notes || "")}</textarea></div>
     <div class="modal-actions">
+      ${isEdit ? `<button class="danger" data-action="delete">Delete</button>` : `<span></span>`}
       <button data-action="cancel">Cancel</button>
       <button class="primary" data-action="save">${isEdit ? "Save changes" : "Add event"}</button>
     </div>
@@ -68,14 +82,23 @@ function openEventModal(existing) {
   modal.addEventListener("click", async (e) => {
     const action = e.target.dataset.action;
     if (action === "cancel") closeModal();
+    if (action === "delete") {
+      if (!confirm(`Delete "${existing.name}"? Past sales keep their record of it, but you won't be able to pick it again.`)) return;
+      await store.events.remove(existing.id);
+      closeModal();
+    }
     if (action === "save") {
       const name = qs("#f-name", modal).value.trim();
       if (!name) { toast("Enter an event name", "error"); return; }
+      const userId = qs("#f-user", modal).value;
+      const assignedUser = users.find((u) => u.id === userId);
       const data = {
         name,
         location: qs("#f-location", modal).value.trim(),
         startDate: qs("#f-start", modal).value || null,
         endDate: qs("#f-end", modal).value || null,
+        assignedUserId: userId || null,
+        assignedUserName: assignedUser?.name || null,
         notes: qs("#f-notes", modal).value.trim(),
       };
       if (isEdit) await store.events.update(existing.id, data);
