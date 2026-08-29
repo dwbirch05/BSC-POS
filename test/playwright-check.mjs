@@ -52,7 +52,7 @@ const rowCount = await page.locator("#inv-table tbody tr").count();
 console.log("STEP: inventory rows =", rowCount);
 if (rowCount !== 1) errors.push("Expected 1 inventory row, got " + rowCount);
 
-const priceCellText = await page.locator("#inv-table tbody tr td").nth(3).innerText();
+const priceCellText = await page.locator("#inv-table tbody tr td").nth(4).innerText();
 console.log("STEP: inventory price cell =", priceCellText);
 if (/usd|aud/i.test(priceCellText)) errors.push("Price cell shouldn't mention USD/AUD: " + priceCellText);
 
@@ -108,7 +108,7 @@ await page.click('[data-action="close"]');
 // stock should have decremented from 3 to 2
 await goTo("inventory-search", "inventory");
 await page.waitForTimeout(300);
-const stockText = await page.locator("#inv-table tbody tr td").nth(4).innerText();
+const stockText = await page.locator("#inv-table tbody tr td").nth(5).innerText();
 console.log("STEP: stock after sale =", stockText);
 if (stockText.trim() !== "2") errors.push("Expected stock 2 after sale, got " + stockText);
 
@@ -153,7 +153,7 @@ await page.waitForTimeout(300);
 
 await goTo("inventory-search", "inventory");
 await page.waitForTimeout(300);
-const stockAfterImport = await page.locator("#inv-table tbody tr td").nth(4).innerText();
+const stockAfterImport = await page.locator("#inv-table tbody tr td").nth(5).innerText();
 console.log("STEP: stock after import =", stockAfterImport);
 if (stockAfterImport.trim() !== "7") errors.push("Expected stock 7 after import (2 + 5), got " + stockAfterImport);
 await page.click('[data-action="view-item"]');

@@ -9,7 +9,7 @@
 // re-importing an updated spreadsheet later just refreshes existing rows).
 // ---------------------------------------------------------------------------
 import { store } from "../store.js";
-import { formatMoney, parseMoneyToCents, escapeHtml } from "../utils.js";
+import { formatMoney, parseMoneyToCents, escapeHtml, normalizeBarcode } from "../utils.js";
 import { parseCsv, toCsv } from "../csv.js";
 import { qs, toast } from "../ui.js";
 
@@ -65,18 +65,21 @@ async function handleFile(container, file) {
     return;
   }
 
-  const existingByBarcode = new Map(store.items.list().filter((it) => it.barcode).map((it) => [it.barcode, it]));
+  const existingByBarcode = new Map(
+    store.items.list().filter((it) => it.barcode).map((it) => [normalizeBarcode(it.barcode), it])
+  );
   const seenBarcodes = new Set();
 
   parsedRows = raw.map((r, idx) => {
     const name = (r.name || "").trim();
     const barcode = (r.barcode || "").trim();
+    const normalized = barcode ? normalizeBarcode(barcode) : "";
     const errors = [];
     if (!name) errors.push("Missing name");
-    if (barcode && seenBarcodes.has(barcode)) errors.push("Duplicate barcode in this file");
-    if (barcode) seenBarcodes.add(barcode);
+    if (normalized && seenBarcodes.has(normalized)) errors.push("Duplicate barcode in this file");
+    if (normalized) seenBarcodes.add(normalized);
 
-    const existing = barcode ? existingByBarcode.get(barcode) : null;
+    const existing = normalized ? existingByBarcode.get(normalized) : null;
 
     return {
       rowNum: idx + 2, // +1 for header row, +1 for 1-indexing

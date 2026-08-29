@@ -76,7 +76,9 @@ js/views/*.js                One file per screen: POS, Inventory (Search /
                               Reporting (Sales History / Product History),
                               Settings, Login
 icons/                       PWA icons
-test/                        Playwright checks used to verify the app (optional,
+test/                        Playwright checks used to verify the app (incl.
+                              queued-features-check.mjs — thumbnails, barcode
+                              normalization, Sales History reporting; optional,
                               needs `npm install playwright` — not required to
                               run the app itself)
 ```
@@ -134,7 +136,12 @@ The **Inventory** tab is a dropdown:
 ## Reporting: Sales History, Product History
 
 The **Reporting** tab (previously "Sales") is a dropdown:
-- **Sales History** — every individual sale, filterable by event and date.
+- **Sales History** — every individual sale, filterable by event, staff
+  member, and date. Use **Group by** to switch from a list of individual
+  sales to a totals report — one row per event or per staff member, with
+  sale count and total revenue for whatever's currently filtered — handy
+  for "how did this show do" or "how much has each staff member sold"
+  without adding anything up by hand.
 - **Product History** — an aggregate table: for every product, total units
   sold, total revenue, and current stock on hand, so you can see what's
   actually moving.
@@ -148,7 +155,8 @@ shows on the customer's detail view alongside their purchase history.
 ## Product photos, tags, and bulk CSV import
 
 Each item can now have tags (comma-separated in the item form) and multiple
-photos. Photos are resized in the browser before saving, so a phone photo
+photos. The first photo also shows as a small thumbnail next to the name in
+the Search Inventory list, so you can spot an item at a glance. Photos are resized in the browser before saving, so a phone photo
 doesn't bloat storage — in demo mode they're stored right in the browser; in
 live (Firebase) mode they're uploaded to Firebase Storage (see step 3 of
 `FIREBASE_SETUP.md`). These aren't used anywhere in the app yet beyond the
@@ -166,6 +174,12 @@ updated rather than duplicated.
 
 ## Barcodes
 
+- **Case and punctuation don't matter for lookups** — scanning or typing
+  `bsc000001`, `BSC-000001`, or `Bsc 000001` all find the same item.
+- **No duplicates** — the app won't let you save two items with the same
+  barcode (comparing the same case/punctuation-insensitive way), and tells
+  you which existing item it clashes with. An item with no barcode at all is
+  always fine, including having several of those.
 - **Existing barcodes** (movie merch, packaged collectables) — just scan
   them; the item is looked up by that exact code.
 - **One-off / signed pieces with no barcode** — click "Generate SKU" when

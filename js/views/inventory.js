@@ -1,5 +1,5 @@
 import { store } from "../store.js";
-import { formatMoney, parseMoneyToCents, escapeHtml, debounce, resizeImageFile } from "../utils.js";
+import { formatMoney, parseMoneyToCents, escapeHtml, debounce, resizeImageFile, normalizeBarcode } from "../utils.js";
 import { qs, qsa, el, toast, openModal, closeModal, onAction } from "../ui.js";
 import { renderBarcodeSVG, generateSku, isCode39Encodable } from "../barcode.js";
 
@@ -32,10 +32,13 @@ export function renderInventory(container, { prefillBarcode } = {}) {
     }
     table.innerHTML = `
       <table>
-        <thead><tr><th>Name</th><th>Category</th><th>Barcode</th><th>Price</th><th>Stock</th><th></th></tr></thead>
+        <thead><tr><th></th><th>Name</th><th>Category</th><th>Barcode</th><th>Price</th><th>Stock</th><th></th></tr></thead>
         <tbody>
           ${items.map((it) => `
             <tr>
+              <td>${it.images?.[0]
+                ? `<div class="row-thumb"><img src="${escapeHtml(it.images[0])}" alt="" /></div>`
+                : `<div class="row-thumb row-thumb-empty"></div>`}</td>
               <td>${escapeHtml(it.name)}</td>
               <td class="text-dim">${escapeHtml(it.category || "")}</td>
               <td class="mono text-dim">${escapeHtml(it.barcode || "")}</td>
@@ -180,6 +183,17 @@ function openItemModal(existing, prefillBarcode) {
     if (action === "save") {
       const name = qs("#f-name", modal).value.trim();
       if (!name) { toast("Enter a name", "error"); return; }
+      const barcode = barcodeInput.value.trim();
+      if (barcode) {
+        const normalized = normalizeBarcode(barcode);
+        const clash = store.items.list().find((it) =>
+          it.id !== existing?.id && normalizeBarcode(it.barcode) === normalized
+        );
+        if (clash) {
+          toast(`That barcode is already used by "${clash.name}" — barcodes must be unique.`, "error", 6000);
+          return;
+        }
+      }
       const data = {
         name,
         category: qs("#f-category", modal).value.trim(),
@@ -188,7 +202,7 @@ function openItemModal(existing, prefillBarcode) {
         cost: parseMoneyToCents(qs("#f-cost", modal).value || "0"),
         price: parseMoneyToCents(qs("#f-price", modal).value || "0"),
         quantityOnHand: parseInt(qs("#f-qty", modal).value || "0", 10),
-        barcode: barcodeInput.value.trim(),
+        barcode,
         tags: qs("#f-tags", modal).value.split(",").map((t) => t.trim()).filter(Boolean),
         images: [...images],
       };

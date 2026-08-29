@@ -5,7 +5,7 @@
 // the same interface as firebase-store.js so views.js code doesn't care
 // which backend is active (see store.js).
 // ---------------------------------------------------------------------------
-import { uid, nowIso, Emitter } from "./utils.js";
+import { uid, nowIso, Emitter, normalizeBarcode } from "./utils.js";
 import { DEFAULT_EVENT_NAME } from "./config.js";
 
 const KEYS = {
@@ -101,7 +101,9 @@ export const localStore = {
   items: {
     ...makeCollection(KEYS.items, emitters.items),
     findByBarcode(code) {
-      return (load(KEYS.items) || []).find((x) => x.barcode === code) || null;
+      const target = normalizeBarcode(code);
+      if (!target) return null;
+      return (load(KEYS.items) || []).find((x) => normalizeBarcode(x.barcode) === target) || null;
     },
     search(query) {
       const q = query.trim().toLowerCase();

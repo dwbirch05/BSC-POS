@@ -145,6 +145,10 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); }
 
+.row-thumb { width: 34px; height: 34px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); background: var(--panel-light); }
+.row-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.row-thumb-empty { background: var(--panel-light); }
+
 .image-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .image-thumb { position: relative; width: 84px; height: 84px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--panel-light); flex: 0 0 auto; }
 .image-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }

@@ -8,7 +8,7 @@
 // inventory.js, etc.) works identically no matter which backend is active.
 // ---------------------------------------------------------------------------
 import { FIREBASE_CONFIG } from "./config.js";
-import { Emitter, uid } from "./utils.js";
+import { Emitter, uid, normalizeBarcode } from "./utils.js";
 
 const SDK_VERSION = "10.13.0";
 const BASE = `https://www.gstatic.com/firebasejs/${SDK_VERSION}`;
@@ -84,7 +84,9 @@ export const firebaseStore = {
   items: {
     ...makeCollection("items"),
     findByBarcode(code) {
-      return caches.items.find((x) => x.barcode === code) || null;
+      const target = normalizeBarcode(code);
+      if (!target) return null;
+      return caches.items.find((x) => normalizeBarcode(x.barcode) === target) || null;
     },
     search(query) {
       const q = query.trim().toLowerCase();

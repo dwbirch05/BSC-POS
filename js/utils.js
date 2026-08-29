@@ -38,6 +38,17 @@ export function formatDateTime(iso) {
   });
 }
 
+/**
+ * Normalizes a barcode/SKU for matching purposes: lowercases and strips
+ * anything that isn't a letter or digit. This makes lookups and uniqueness
+ * checks ignore case AND punctuation, so "BSC-000001", "bsc000001", and
+ * "Bsc 000001" are all treated as the same code. Only used for comparisons --
+ * the barcode value actually stored/printed/displayed is never changed.
+ */
+export function normalizeBarcode(code) {
+  return String(code || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 export function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
