@@ -112,15 +112,17 @@ const stockText = await page.locator("#inv-table tbody tr td").nth(5).innerText(
 console.log("STEP: stock after sale =", stockText);
 if (stockText.trim() !== "2") errors.push("Expected stock 2 after sale, got " + stockText);
 
-// --- Reporting > Sales history shows the sale ---
-await goTo("reporting-sales", "reporting");
+// --- Reporting > Sales history shows the sale (reached via Home now, not the old nav dropdown) ---
+await page.click("#home-btn");
+await page.waitForSelector('[data-home-tile="reporting-sales"]');
+await page.click('[data-home-tile="reporting-sales"]');
 await page.waitForTimeout(300);
 const salesSummary = await page.locator("#sales-summary").innerText();
 console.log("STEP: sales summary =", salesSummary);
 if (!salesSummary.startsWith("1 sale")) errors.push("Sales history doesn't show 1 sale: " + salesSummary);
 
-// --- Reporting > Product history shows the aggregate ---
-await goTo("reporting-products", "reporting");
+// --- Reporting > Product history via the in-page report tab switcher ---
+await page.click('[data-action="report-tab-products"]');
 await page.waitForTimeout(300);
 const phSummary = await page.locator("#ph-summary").innerText();
 console.log("STEP: product history summary =", phSummary);

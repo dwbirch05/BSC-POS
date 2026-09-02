@@ -2,7 +2,7 @@
 // with no internet at a show. Firebase/EmailJS network calls are left
 // alone -- Firestore manages its own offline cache internally.
 
-const CACHE_NAME = "bsc-pos-v4";
+const CACHE_NAME = "bsc-pos-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -20,6 +20,7 @@ const APP_SHELL = [
   "./js/barcode.js",
   "./js/receipt.js",
   "./js/views/login.js",
+  "./js/views/home.js",
   "./js/views/pos.js",
   "./js/views/inventory.js",
   "./js/views/import-products.js",

@@ -10,12 +10,16 @@ import { qs } from "../ui.js";
 let unsubItems = null;
 let unsubSales = null;
 
-export function renderProductHistory(container) {
+export function renderProductHistory(container, { navigate } = {}) {
   if (unsubItems) unsubItems();
   if (unsubSales) unsubSales();
 
   container.innerHTML = `
     <div class="card">
+      <div class="row" style="margin-bottom:10px; gap:6px;">
+        <button type="button" class="ghost" style="flex:0 0 auto" data-action="report-tab-sales">Sales History</button>
+        <button type="button" class="primary" style="flex:0 0 auto" data-action="report-tab-products">Product History</button>
+      </div>
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <h2 style="margin:0">Product history</h2>
         <span class="text-dim" id="ph-summary" style="font-size:13px"></span>
@@ -83,6 +87,7 @@ export function renderProductHistory(container) {
   }
 
   search.addEventListener("input", debounce(draw, 120));
+  qs("[data-action='report-tab-sales']", container).addEventListener("click", () => navigate?.("reporting-sales"));
   unsubItems = store.items.onChange(draw);
   unsubSales = store.sales.onChange(draw);
 }

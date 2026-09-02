@@ -120,7 +120,10 @@ await page.evaluate(async () => {
 });
 
 // --- Sales History: staff filter narrows the individual-sales list ---
-await goTo("reporting-sales", "reporting");
+// (reached via Home now, not the old nav dropdown)
+await page.click("#home-btn");
+await page.waitForSelector('[data-home-tile="reporting-sales"]');
+await page.click('[data-home-tile="reporting-sales"]');
 await page.waitForTimeout(300);
 const staffOptions = await page.locator("#filter-staff option").allInnerTexts();
 console.log("STEP: staff filter options =", staffOptions);

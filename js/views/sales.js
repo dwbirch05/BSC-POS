@@ -5,12 +5,16 @@ import { renderReceiptHtml, printReceipt, emailReceipt } from "../receipt.js";
 
 let unsubscribe = null;
 
-export function renderSales(container) {
+export function renderSales(container, { navigate } = {}) {
   if (unsubscribe) unsubscribe();
   const events = store.events.list();
   const staff = store.users.list();
   container.innerHTML = `
     <div class="card">
+      <div class="row" style="margin-bottom:10px; gap:6px;">
+        <button type="button" class="primary" style="flex:0 0 auto" data-action="report-tab-sales">Sales History</button>
+        <button type="button" class="ghost" style="flex:0 0 auto" data-action="report-tab-products">Product History</button>
+      </div>
       <h2 style="margin-top:0">Sales history</h2>
       <div class="row">
         <div class="field">
@@ -134,6 +138,7 @@ export function renderSales(container) {
     const btn = e.target.closest("[data-action='view-sale']");
     if (btn) showSaleModal(store.sales.get(btn.dataset.id));
   });
+  qs("[data-action='report-tab-products']", container).addEventListener("click", () => navigate?.("reporting-products"));
 
   unsubscribe = store.sales.onChange(draw);
 }

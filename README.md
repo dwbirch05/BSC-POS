@@ -21,7 +21,9 @@ internet dependency, no setup.
    (Barcode camera scanning and the installable-app/offline features need
    it to be served over `http://` or `https://`, not opened as a bare
    `file://` path.)
-2. Click "Sign in" (any email works in demo mode).
+2. Click "Sign in" (any email works in demo mode). You'll land on the **Home**
+   screen — click any tile to get to that section, and the **⌂ Home** button
+   in the top-right takes you back to this screen from anywhere.
 3. Add an item in **Inventory &rsaquo; Search Inventory** (try "Generate SKU"
    to get a printable barcode), then go to **POS** and type/scan that
    barcode to try a sale.
@@ -67,20 +69,21 @@ js/local-store.js          Demo-mode backend (localStorage)
 js/firebase-store.js       Live-mode backend (Firestore + Auth)
 js/barcode.js               Code 39 barcode generator (no external library)
 js/receipt.js               Receipt rendering, printing, emailing
-js/app.js                   Navigation shell (incl. Inventory/Reporting dropdowns),
-                              login gate, offline indicator
+js/app.js                   Navigation shell (incl. the Inventory dropdown,
+                              the Home button), login gate, offline indicator
 js/checkin.js                Tracks who's verified themselves on this device today
                               (powers the POS "Serving" switcher)
-js/views/*.js                One file per screen: POS, Inventory (Search /
+js/views/*.js                One file per screen: Home, POS, Inventory (Search /
                               Import Stock / Import History), Customers, Events,
                               Reporting (Sales History / Product History),
                               Settings, Login
 icons/                       PWA icons
 test/                        Playwright checks used to verify the app (incl.
-                              queued-features-check.mjs — thumbnails, barcode
-                              normalization, Sales History reporting; optional,
-                              needs `npm install playwright` — not required to
-                              run the app itself)
+                              home-screen-check.mjs — the Home launcher and
+                              Reporting access; queued-features-check.mjs —
+                              thumbnails, barcode normalization, Sales History
+                              reporting; optional, needs `npm install playwright`
+                              — not required to run the app itself)
 ```
 
 There is **no build step**. Every file is plain HTML/CSS/JavaScript
@@ -99,6 +102,16 @@ There is **no build step**. Every file is plain HTML/CSS/JavaScript
 - The app itself (the screens, not the data) is cached by the service
   worker (`sw.js`) so it opens even with no signal at all, once you've
   loaded it at least once.
+
+## Home screen
+
+Signing in takes you to **Home** — a grid of icons, one per section (POS,
+Inventory, Customers, Events, Reporting, Settings). Click a tile to go there;
+the **⌂ Home** button at the top of every screen brings you back to this grid
+from anywhere. Reporting is only reachable from here (it's not one of the
+tabs across the top like the others) — from **Sales History** or **Product
+History** there are two small buttons at the top of the screen to flip
+between them without needing to go back to Home first.
 
 ## Events on the POS screen
 
@@ -135,7 +148,8 @@ The **Inventory** tab is a dropdown:
 
 ## Reporting: Sales History, Product History
 
-The **Reporting** tab (previously "Sales") is a dropdown:
+Open **Reporting** from the Home screen (see above) — it's not one of the
+top tabs:
 - **Sales History** — every individual sale, filterable by event, staff
   member, and date. Use **Group by** to switch from a list of individual
   sales to a totals report — one row per event or per staff member, with

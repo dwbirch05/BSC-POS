@@ -3,6 +3,7 @@ import { APP_MODE, APP_NAME } from "./config.js";
 import { qs, qsa, toast } from "./ui.js";
 import { markCheckedIn } from "./checkin.js";
 import { renderLogin } from "./views/login.js";
+import { renderHome } from "./views/home.js";
 import { renderPos } from "./views/pos.js";
 import { renderInventory } from "./views/inventory.js";
 import { renderImportStock } from "./views/import-stock.js";
@@ -15,9 +16,21 @@ import { renderProductHistory } from "./views/product-history.js";
 import { renderSettings } from "./views/settings.js";
 
 // Each top-level nav entry either renders directly, or has `children` and
-// becomes a dropdown menu (Inventory, Reporting) — click the parent to open
-// the menu, click a child to actually navigate.
+// becomes a dropdown menu (Inventory) — click the parent to open the menu,
+// click a child to actually navigate. Entries marked `hidden: true` are
+// still fully routable (navigate()/findRoute() work normally) but don't
+// render as a button in the shared tab bar -- used for Home (it's reached
+// via the dedicated Home button instead, see shellTemplate) and Reporting
+// (deliberately NOT in the shared nav so it can only be reached from the
+// Home screen's tiles -- see js/views/home.js and the "all-in-one business
+// app" roadmap notes: this is what makes it straightforward to hide the
+// Reporting tile for a given role later without also having to touch the
+// shared nav bar).
 const NAV = [
+  {
+    id: "home", label: "Home", hidden: true,
+    render: (main) => renderHome(main, { navigate }),
+  },
   {
     id: "pos", label: "POS",
     render: (main) => renderPos(main, { goToInventory: (barcode) => navigate("inventory-search", { prefillBarcode: barcode }) }),
@@ -34,17 +47,18 @@ const NAV = [
   { id: "customers", label: "Customers", render: (main) => renderCustomers(main) },
   { id: "events", label: "Events", render: (main) => renderEvents(main) },
   {
-    id: "reporting", label: "Reporting",
-    children: [
-      { id: "reporting-sales", label: "Sales History", render: (main) => renderSales(main) },
-      { id: "reporting-products", label: "Product History", render: (main) => renderProductHistory(main) },
-    ],
+    id: "reporting-sales", label: "Sales History", hidden: true,
+    render: (main) => renderSales(main, { navigate }),
+  },
+  {
+    id: "reporting-products", label: "Product History", hidden: true,
+    render: (main) => renderProductHistory(main, { navigate }),
   },
   { id: "settings", label: "Settings", render: (main) => renderSettings(main, { currentUser }) },
 ];
 
 const app = qs("#app");
-let currentRoute = "pos";
+let currentRoute = "home";
 let currentUser = null;
 let openDropdownId = null;
 
@@ -72,13 +86,14 @@ function shellTemplate() {
     <header class="topbar">
       <div class="brand"><span class="dot"></span> ${APP_NAME} <span class="badge-mode ${APP_MODE}">${APP_MODE}</span></div>
       <div style="display:flex; align-items:center; gap:10px;">
+        <button class="ghost" id="home-btn" title="Home">⌂ Home</button>
         <span id="online-pill" class="status-pill online"><span class="dot"></span> Online</span>
         <span class="text-dim" style="font-size:13px">${currentUser?.name || ""}</span>
         <button class="ghost" id="logout-btn">Log out</button>
       </div>
     </header>
     <nav class="tabs" id="tabs">
-      ${NAV.map((item) => navItemHtml(item)).join("")}
+      ${NAV.filter((item) => !item.hidden).map((item) => navItemHtml(item)).join("")}
     </nav>
     <main id="main"></main>
   `;
@@ -112,7 +127,7 @@ function navigate(routeId, opts = {}) {
 function renderNav() {
   const nav = qs("#tabs", app);
   if (!nav) return;
-  nav.innerHTML = NAV.map((item) => navItemHtml(item)).join("");
+  nav.innerHTML = NAV.filter((item) => !item.hidden).map((item) => navItemHtml(item)).join("");
 }
 
 function renderShell() {
@@ -138,6 +153,7 @@ function renderShell() {
   qs("#logout-btn", app).addEventListener("click", async () => {
     await store.auth.logout();
   });
+  qs("#home-btn", app).addEventListener("click", () => navigate("home"));
   updateOnlineStatus();
   navigate(currentRoute);
 }
