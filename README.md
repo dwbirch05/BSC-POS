@@ -108,10 +108,18 @@ There is **no build step**. Every file is plain HTML/CSS/JavaScript
 Signing in takes you to **Home** — a grid of icons, one per section (POS,
 Inventory, Customers, Events, Reporting, Settings). Click a tile to go there;
 the **⌂ Home** button at the top of every screen brings you back to this grid
-from anywhere. Reporting is only reachable from here (it's not one of the
-tabs across the top like the others) — from **Sales History** or **Product
-History** there are two small buttons at the top of the screen to flip
-between them without needing to go back to Home first.
+from anywhere. The top bar (with the Home button) stays pinned to the top of
+the screen as you scroll down a longer page — like a full cart at POS — so
+it's always there without scrolling back up first. Reporting is only
+reachable from here (it's not one of the tabs across the top like the
+others) — from **Sales History** or **Product History** there are two small
+buttons at the top of the screen to flip between them without needing to go
+back to Home first.
+
+The row of tabs (Inventory / Customers / Events / Settings) only shows on
+screens other than POS — while you're checking someone out, that row is
+gone entirely, so there's nothing up top but the Home button, online
+status, and Log out. To get anywhere else while on POS, use **⌂ Home**.
 
 ## Events on the POS screen
 
@@ -185,6 +193,16 @@ and review the preview — new products, updates to existing ones (matched by
 barcode), and any skipped rows are all shown before anything is saved. Safe
 to re-run later with an updated file; a barcode that already exists gets
 updated rather than duplicated.
+
+## Inventory: selecting and deleting multiple items
+
+Each row in Search Inventory has a checkbox, and the column header has a
+"select all" checkbox for everything currently shown (respects the search
+box, so you can search down to a category or supplier first, then select
+all of those). Selecting anything shows a small bar above the table with a
+count, a **Clear** button, and a **Delete selected** button — deleting asks
+you to confirm once, naming the item (or the count, for more than one),
+since it can't be undone.
 
 ## Barcodes
 

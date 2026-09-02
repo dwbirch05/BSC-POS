@@ -83,18 +83,20 @@ function topLevelIdFor(routeId) {
 
 function shellTemplate() {
   return `
-    <header class="topbar">
-      <div class="brand"><span class="dot"></span> ${APP_NAME} <span class="badge-mode ${APP_MODE}">${APP_MODE}</span></div>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <button class="ghost" id="home-btn" title="Home">⌂ Home</button>
-        <span id="online-pill" class="status-pill online"><span class="dot"></span> Online</span>
-        <span class="text-dim" style="font-size:13px">${currentUser?.name || ""}</span>
-        <button class="ghost" id="logout-btn">Log out</button>
-      </div>
-    </header>
-    <nav class="tabs" id="tabs">
-      ${NAV.filter((item) => !item.hidden).map((item) => navItemHtml(item)).join("")}
-    </nav>
+    <div class="shell-head">
+      <header class="topbar">
+        <div class="brand"><span class="dot"></span> ${APP_NAME} <span class="badge-mode ${APP_MODE}">${APP_MODE}</span></div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button class="ghost" id="home-btn" title="Home">⌂ Home</button>
+          <span id="online-pill" class="status-pill online"><span class="dot"></span> Online</span>
+          <span class="text-dim" style="font-size:13px">${currentUser?.name || ""}</span>
+          <button class="ghost" id="logout-btn">Log out</button>
+        </div>
+      </header>
+      <nav class="tabs" id="tabs">
+        ${NAV.filter((item) => !item.hidden).map((item) => navItemHtml(item)).join("")}
+      </nav>
+    </div>
     <main id="main"></main>
   `;
 }
@@ -127,6 +129,16 @@ function navigate(routeId, opts = {}) {
 function renderNav() {
   const nav = qs("#tabs", app);
   if (!nav) return;
+  // POS is the checkout screen staff live in all day -- Darryl asked for the
+  // tab bar (Inventory/Customers/Events/etc.) to disappear entirely while
+  // there, since Home (always in the topbar) is the only way back out he
+  // wants offered. Every other screen still shows the normal tab bar.
+  if (topLevelIdFor(currentRoute) === "pos") {
+    nav.style.display = "none";
+    nav.innerHTML = "";
+    return;
+  }
+  nav.style.display = "";
   nav.innerHTML = NAV.filter((item) => !item.hidden).map((item) => navItemHtml(item)).join("");
 }
 

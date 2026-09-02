@@ -7,6 +7,7 @@ let unsubscribe = null;
 
 export function renderInventory(container, { prefillBarcode } = {}) {
   if (unsubscribe) unsubscribe();
+  const selected = new Set();
   container.innerHTML = `
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -16,26 +17,46 @@ export function renderInventory(container, { prefillBarcode } = {}) {
       <div class="search-box" style="margin-top:14px">
         <input id="inv-search" placeholder="Search by name, category, barcode…" />
       </div>
+      <div id="inv-bulk-bar"></div>
       <div id="inv-table"></div>
     </div>
   `;
 
   const table = qs("#inv-table", container);
+  const bulkBar = qs("#inv-bulk-bar", container);
   const search = qs("#inv-search", container);
+
+  function renderBulkBar() {
+    if (selected.size === 0) { bulkBar.innerHTML = ""; return; }
+    bulkBar.innerHTML = `
+      <div class="bulk-bar">
+        <span>${selected.size} selected</span>
+        <button class="ghost" data-action="clear-selection">Clear</button>
+        <button class="danger" data-action="delete-selected">Delete selected</button>
+      </div>
+    `;
+  }
 
   function draw() {
     const q = search.value.trim();
     const items = q ? store.items.search(q) : store.items.list();
+    // Drop selections for items no longer present (deleted, or filtered out
+    // wouldn't apply here since we don't prune on search -- only on real removal).
+    const presentIds = new Set(store.items.list().map((it) => it.id));
+    for (const id of [...selected]) if (!presentIds.has(id)) selected.delete(id);
+    renderBulkBar();
+
     if (items.length === 0) {
       table.innerHTML = `<div class="empty-state">No items yet — click "Add item" to start building your inventory.</div>`;
       return;
     }
     table.innerHTML = `
       <table>
-        <thead><tr><th></th><th>Name</th><th>Category</th><th>Barcode</th><th>Price</th><th>Stock</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="select-all-checkbox" title="Select all" /></th><th></th><th>Name</th><th>Category</th><th>Barcode</th><th>Price</th><th>Stock</th><th></th></tr></thead>
         <tbody>
           ${items.map((it) => `
             <tr>
+              <td><input type="checkbox" class="row-select" data-id="${it.id}" ${selected.has(it.id) ? "checked" : ""} /></td>
               <td>${it.images?.[0]
                 ? `<div class="row-thumb"><img src="${escapeHtml(it.images[0])}" alt="" /></div>`
                 : `<div class="row-thumb row-thumb-empty"></div>`}</td>
@@ -53,6 +74,30 @@ export function renderInventory(container, { prefillBarcode } = {}) {
         </tbody>
       </table>
     `;
+
+    const selectAllCb = qs("#select-all-checkbox", table);
+    const syncSelectAll = () => {
+      const allSelected = items.every((it) => selected.has(it.id));
+      const anySelected = items.some((it) => selected.has(it.id));
+      selectAllCb.checked = allSelected;
+      selectAllCb.indeterminate = !allSelected && anySelected;
+    };
+    syncSelectAll();
+
+    qsa(".row-select", table).forEach((cb) => {
+      cb.addEventListener("change", () => {
+        if (cb.checked) selected.add(cb.dataset.id);
+        else selected.delete(cb.dataset.id);
+        renderBulkBar();
+        syncSelectAll();
+      });
+    });
+
+    selectAllCb.addEventListener("change", (e) => {
+      if (e.target.checked) items.forEach((it) => selected.add(it.id));
+      else items.forEach((it) => selected.delete(it.id));
+      draw();
+    });
   }
 
   search.addEventListener("input", debounce(draw, 120));
@@ -61,6 +106,19 @@ export function renderInventory(container, { prefillBarcode } = {}) {
     "add-item": () => openItemModal(),
     "edit-item": (btn) => openItemModal(store.items.get(btn.dataset.id)),
     "view-item": (btn) => openItemDetail(store.items.get(btn.dataset.id)),
+    "clear-selection": () => { selected.clear(); draw(); },
+    "delete-selected": async () => {
+      const ids = [...selected];
+      if (ids.length === 0) return;
+      const names = store.items.list().filter((it) => ids.includes(it.id)).map((it) => it.name);
+      const label = ids.length === 1 ? `"${names[0]}"` : `these ${ids.length} items`;
+      if (!confirm(`Delete ${label}? This can't be undone.`)) return;
+      for (const id of ids) {
+        try { await store.items.remove(id); } catch (err) { toast("Couldn't delete an item: " + err.message, "error"); }
+      }
+      selected.clear();
+      toast(`${ids.length} item${ids.length === 1 ? "" : "s"} deleted`, "success");
+    },
   });
 
   unsubscribe = store.items.onChange(draw);
