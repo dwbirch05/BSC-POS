@@ -44,6 +44,7 @@ const MODEL = "claude-sonnet-4-5"; // check the docs link above before deploying
 // directly (e.g. from devtools) by an account that shouldn't have access.
 const ALLOWED_EMAILS = [
   "demo@bigscreencollectables.local",
+  "dwbirch05@gmail.com",
 ];
 
 // Condition is supplied by the caller (a human already looked at the card),
