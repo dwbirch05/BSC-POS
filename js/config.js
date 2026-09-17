@@ -49,6 +49,7 @@ export const DEFAULT_EVENT_NAME = "Home Store";
 // ---------------------------------------------------------------------------
 export const CARD_AI_ALLOWED_EMAILS = [
   "demo@bigscreencollectables.local",
+  "dwbirch05@gmail.com",
 ];
 
 export function isCardAiAllowed(user) {
