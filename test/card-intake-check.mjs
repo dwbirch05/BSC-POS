@@ -61,13 +61,14 @@ await page.click('[data-action="remove-pair"][data-idx="1"]');
 await page.waitForFunction(() => document.querySelectorAll('[data-action="swap-pair"]').length === 1);
 console.log("STEP: removed the second pair, 1 pair remains");
 
-// --- Condition is staff-supplied on the pairing-confirm screen, not AI-generated ---
-await page.click('[data-action="start-processing"]');
-let processingErrorToast = await page.locator(".toast.error").count();
-console.log("STEP: starting processing without a condition set is blocked =", processingErrorToast > 0);
-if (processingErrorToast === 0) errors.push("Expected starting processing with no condition set to be blocked");
+// --- Condition is staff-supplied on the pairing-confirm screen, not AI-generated --
+// defaults to "Excellent" so staff usually don't have to touch it, but it's
+// changeable per card.
+const defaultCondition = await page.locator('[data-pair-condition="0"]').inputValue();
+console.log("STEP: pairing-confirm condition defaults to =", defaultCondition);
+if (defaultCondition !== "Excellent") errors.push("Expected the condition dropdown to default to Excellent: got " + defaultCondition);
 
-await page.selectOption('[data-pair-condition="0"]', "Near Mint");
+await page.selectOption('[data-pair-condition="0"]', "Near Mint or Better");
 await page.click('[data-action="start-processing"]');
 await page.waitForSelector("#ci-review-card:not([hidden])", { timeout: 15000 });
 let entries = page.locator("#ci-review-list > [data-id]");
@@ -91,7 +92,7 @@ if (!exportSummary.includes("1 card")) errors.push("Expected the export summary 
 // --- A second batch: process 1 pair, then reject it -- shouldn't add to the export ---
 await page.setInputFiles("#ci-file-input", [photo("c-front.png"), photo("c-back.png")]);
 await page.waitForSelector("#ci-pairing-card:not([hidden])");
-await page.selectOption('[data-pair-condition="0"]', "Good");
+await page.selectOption('[data-pair-condition="0"]', "Very Good");
 await page.click('[data-action="start-processing"]');
 await page.waitForSelector("#ci-review-card:not([hidden])", { timeout: 15000 });
 entries = page.locator("#ci-review-list > [data-id]");

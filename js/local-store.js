@@ -100,16 +100,14 @@ function makeCollection(key, emitter) {
 // condition the "staff" picked on the pairing-confirm screen -- mirroring
 // what the real prompt asks the model to do with a given condition.
 const CONDITION_DETAIL = {
-  Mint: "Centering looks dead-on front and back, corners are sharp with no whitening, edges are clean, and the surface is flawless under a close look -- no scuffing, print lines, or scratches.",
-  "Near Mint": "Centering is strong, corners are sharp with only the faintest hint of wear under close inspection, edges are clean, and the surface is bright with no visible scratches or print defects.",
+  "Near Mint or Better": "Centering is strong, corners are sharp with at most the faintest hint of wear under close inspection, edges are clean, and the surface is bright with no visible scratches or print defects.",
   Excellent: "Centering is solid, corners show light wear with just a touch of softness, edges are mostly clean with maybe a hair of wear, and the surface still has good gloss with nothing major to note.",
-  Good: "Centering is reasonable, corners show noticeable wear and some rounding, edges have visible wear along a few sides, and the surface has light scuffing but no major damage.",
-  Fair: "Centering is off to one side, corners are rounded with visible whitening, edges show real wear, and the surface has scratching or scuffing that's easy to spot at a glance.",
+  "Very Good": "Centering is reasonable, corners show noticeable wear and some rounding, edges have visible wear along a few sides, and the surface has light scuffing but no major damage.",
   Poor: "Centering is noticeably off, corners are heavily rounded and worn, edges are rough in places, and the surface shows clear scratching, creasing, or other damage.",
 };
 
 function buildMockCopy(pick, condition) {
-  const detail = CONDITION_DETAIL[condition] || CONDITION_DETAIL["Near Mint"];
+  const detail = CONDITION_DETAIL[condition] || CONDITION_DETAIL.Excellent;
   const parallelBit = pick.parallel && pick.parallel !== "Base" ? ` ${pick.parallel}` : "";
   // A few of the mock setNames already start with the year (e.g. "2021
   // Prizm") -- don't repeat it in that case.
@@ -218,7 +216,7 @@ export const localStore = {
 
       const pick = pool[Math.floor(Math.random() * pool.length)];
       const flagged = Math.random() < 0.2;
-      const usedCondition = condition || "Near Mint"; // fallback only if somehow called without one
+      const usedCondition = condition || "Excellent"; // fallback only if somehow called without one
 
       return {
         confident: !flagged,

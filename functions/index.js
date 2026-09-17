@@ -12,8 +12,8 @@
 //
 // Input:  { frontDataUrl, backDataUrl, condition } -- base64 JPEG data URLs
 //         plus the card's condition as picked by staff on the
-//         pairing-confirm screen (one of "Mint", "Near Mint", "Excellent",
-//         "Good", "Fair", "Poor"). The AI does NOT grade the card itself --
+//         pairing-confirm screen (one of "Near Mint or Better", "Excellent",
+//         "Very Good", "Poor" -- defaults to "Excellent" in the UI). The AI does NOT grade the card itself --
 //         condition is a human call (it drives price and reputation), the
 //         AI just writes copy that matches the condition it's given.
 // Output: { confident, reason, sport, player, setName, year, cardNumber,

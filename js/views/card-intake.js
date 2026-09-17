@@ -44,7 +44,11 @@ import { isCardAiAllowed } from "../config.js";
 // that makes the exported file importable there with zero translation.
 const CSV_HEADERS = ["name", "barcode", "category", "condition", "description", "cost", "price", "quantity", "tags", "images"];
 
-const CONDITION_OPTIONS = ["Mint", "Near Mint", "Excellent", "Good", "Fair", "Poor"];
+const CONDITION_OPTIONS = ["Near Mint or Better", "Excellent", "Very Good", "Poor"];
+// Most of Darryl's raw cards grade out around here, so each pair starts on
+// this condition and staff only need to touch the dropdown for the ones
+// that are actually different.
+const DEFAULT_CONDITION = "Excellent";
 
 let state = null;
 
@@ -67,7 +71,7 @@ export function renderCardIntake(container, { currentUser } = {}) {
 function freshState() {
   return {
     phase: "upload", // "upload" | "pairing" | "processing" | "review"
-    pairs: [],        // [{ front: dataUrl, back: dataUrl, condition: "" }]
+    pairs: [],        // [{ front: dataUrl, back: dataUrl, condition: DEFAULT_CONDITION }]
     leftover: null,    // dataUrl of an unpaired trailing photo, if any
     queue: [],          // [{ id, front, back, confident, reason, name, category, condition, description, quantity, tagsStr }]
     accepted: [],         // CSV-ready row objects
@@ -189,7 +193,7 @@ async function handleFiles(container, fileList) {
 
   const pairs = [];
   for (let i = 0; i + 1 < dataUrls.length; i += 2) {
-    pairs.push({ front: dataUrls[i], back: dataUrls[i + 1], condition: "" });
+    pairs.push({ front: dataUrls[i], back: dataUrls[i + 1], condition: DEFAULT_CONDITION });
   }
   const leftover = dataUrls.length % 2 === 1 ? dataUrls[dataUrls.length - 1] : null;
 
@@ -213,7 +217,6 @@ function renderPairing(container) {
       </div>
       <span class="text-dim" style="font-size:11px">Card ${i + 1}</span>
       <select class="select-compact" style="font-size:12px; padding:4px 6px;" data-pair-condition="${i}">
-        <option value="" ${p.condition ? "" : "selected"}>Select condition…</option>
         ${CONDITION_OPTIONS.map((c) => `<option value="${c}" ${p.condition === c ? "selected" : ""}>${c}</option>`).join("")}
       </select>
       <div style="display:flex; gap:4px;">
@@ -231,7 +234,7 @@ function renderPairing(container) {
 function swapPair(container, idx) {
   const p = state.pairs[idx];
   if (!p) return;
-  state.pairs[idx] = { front: p.back, back: p.front };
+  state.pairs[idx] = { ...p, front: p.back, back: p.front };
   renderPairing(container);
 }
 
