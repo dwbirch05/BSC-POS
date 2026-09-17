@@ -41,7 +41,7 @@ const ALLOWED_EMAILS = [
   "demo@bigscreencollectables.local",
 ];
 
-const CARD_PROMPT = `You are helping a trading card shop identify raw (ungraded) sports and TCG cards from photos of the front and back.
+const CARD_PROMPT = `You are helping a trading card shop identify raw (ungraded) sports and TCG cards from photos of the front and back, and write the listing copy for them the way an experienced, detail-oriented card seller would -- specific and persuasive, never generic or robotic-sounding.
 
 Look at both images and respond with ONLY a single JSON object (no markdown fences, no commentary) with exactly these fields:
 {
@@ -55,9 +55,17 @@ Look at both images and respond with ONLY a single JSON object (no markdown fenc
   "parallel": string,         // parallel/variant name if any (e.g. "Refractor", "Holo Rare"), else "Base"
   "condition": string,        // your best assessment: one of "Mint", "Near Mint", "Excellent", "Good", "Fair", "Poor"
   "title": string,            // an eBay-style listing title, 80 characters or fewer, covering set/player/number/parallel/condition
-  "description": string,      // 1-3 sentence listing description mentioning it's raw/ungraded and the condition assessment
+  "description": string,      // a longer, detailed, persuasive listing description -- see the requirements below
   "category": string          // "Trading Cards - Sports" or "Trading Cards - TCG"
 }
+
+Requirements for "description" (this is the part buyers actually read, so put real effort into it -- don't just restate the title):
+- 4-6 sentences, not 1-2. Thin, generic descriptions are the main thing to avoid here.
+- Open by placing the card: player/character, set, year, and parallel/variant, written naturally rather than as a bare spec dump.
+- Give a specific, credible condition assessment grounded in what's actually visible in the two photos -- call out centering, corner sharpness, edge wear, surface/print quality, and any specific flaws or standout strengths you can see, rather than a single generic adjective. Different cards should read like they got a genuinely different look, not a reused template.
+- Clearly state it's raw/ungraded.
+- Close with a sentence that makes the card appealing to a collector or buyer -- why this particular card/parallel/player is worth having -- without resorting to fake urgency, unverifiable claims ("rare", "investment grade", pop-report numbers) you can't actually see evidence for in the photos, or generic filler like "a must-have for any collection."
+- Write in confident, natural prose a real seller would post, not a checklist or bullet list.
 
 If you cannot identify the card at all, set "confident": false, explain why in "reason", and still give your best-effort guesses for the rest of the fields rather than leaving them blank.`;
 
@@ -86,7 +94,7 @@ exports.identifyCard = onCall({ secrets: [ANTHROPIC_API_KEY], cors: true }, asyn
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1024,
+        max_tokens: 1536, // descriptions are now longer (4-6 sentences) -- headroom so the JSON never gets cut off mid-response
         messages: [
           {
             role: "user",
