@@ -14,15 +14,15 @@
 // You can switch modes any time by changing APP_MODE and reloading.
 // ---------------------------------------------------------------------------
 
-export const APP_MODE = "demo"; // "demo" | "firebase"
+export const APP_MODE = "firebase"; // "demo" | "firebase"
 
 export const FIREBASE_CONFIG = {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME.firebaseapp.com",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME.appspot.com",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME",
+  apiKey: "AIzaSyAys4z6x9YaxUGJbfYff2KZCa9GnZDKSi4",
+  authDomain: "bsc-os.firebaseapp.com",
+  projectId: "bsc-os",
+  storageBucket: "bsc-os.firebasestorage.app",
+  messagingSenderId: "362680295353",
+  appId: "1:362680295353:web:c84935362701fe686e6068",
 };
 
 // EmailJS is used to email receipts to customers without needing a mail
