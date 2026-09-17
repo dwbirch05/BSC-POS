@@ -7,6 +7,7 @@
 // used once the admin/manager/staff role model exists).
 // ---------------------------------------------------------------------------
 import { qs } from "../ui.js";
+import { isCardAiAllowed } from "../config.js";
 
 const TILES = [
   { routeId: "pos", label: "POS", icon: "🛒" },
@@ -17,13 +18,22 @@ const TILES = [
   { routeId: "settings", label: "Settings", icon: "⚙️" },
 ];
 
-export function renderHome(container, { navigate } = {}) {
+// Card Intake is restricted to specific accounts (CARD_AI_ALLOWED_EMAILS in
+// config.js) -- rather than a `roles` list like the comment above mentions
+// for the future role model, it's gated by that allowlist for now, so the
+// tile itself only appears for allowed accounts (same "hidden unless
+// reachable" pattern already used for the Reporting tile/route).
+export function renderHome(container, { navigate, currentUser } = {}) {
+  const tiles = isCardAiAllowed(currentUser)
+    ? [...TILES, { routeId: "card-intake", label: "Card Intake", icon: "🃏" }]
+    : TILES;
+
   container.innerHTML = `
     <div class="card">
       <h2 style="margin-top:0">Big Screen Collectables</h2>
       <p class="text-dim" style="margin-top:-6px">Pick where you'd like to go.</p>
       <div class="home-grid">
-        ${TILES.map((t) => `
+        ${tiles.map((t) => `
           <button type="button" class="home-tile" data-home-tile="${t.routeId}">
             <span class="icon">${t.icon}</span>
             <span>${t.label}</span>

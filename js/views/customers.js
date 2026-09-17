@@ -1,11 +1,12 @@
 import { store } from "../store.js";
 import { formatMoney, formatDate, escapeHtml, debounce } from "../utils.js";
-import { qs, toast, openModal, closeModal, onAction } from "../ui.js";
+import { qs, qsa, toast, openModal, closeModal, onAction } from "../ui.js";
 
 let unsubscribe = null;
 
 export function renderCustomers(container) {
   if (unsubscribe) unsubscribe();
+  const selected = new Set();
   container.innerHTML = `
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -15,28 +16,46 @@ export function renderCustomers(container) {
       <div class="search-box" style="margin-top:14px">
         <input id="cust-search" placeholder="Search name, email, phone…" />
       </div>
+      <div id="cust-bulk-bar"></div>
       <div id="cust-table"></div>
     </div>
   `;
 
   const table = qs("#cust-table", container);
+  const bulkBar = qs("#cust-bulk-bar", container);
   const search = qs("#cust-search", container);
+
+  function renderBulkBar() {
+    if (selected.size === 0) { bulkBar.innerHTML = ""; return; }
+    bulkBar.innerHTML = `
+      <div class="bulk-bar">
+        <span>${selected.size} selected</span>
+        <button class="ghost" data-action="clear-selection">Clear</button>
+        <button class="danger" data-action="delete-selected">Delete selected</button>
+      </div>
+    `;
+  }
 
   function draw() {
     const q = search.value.trim();
     const list = q ? store.customers.search(q) : store.customers.list();
+    const presentIds = new Set(store.customers.list().map((c) => c.id));
+    for (const id of [...selected]) if (!presentIds.has(id)) selected.delete(id);
+    renderBulkBar();
+
     if (list.length === 0) {
       table.innerHTML = `<div class="empty-state">No customers yet.</div>`;
       return;
     }
     table.innerHTML = `
       <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Purchases</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="select-all-checkbox" title="Select all" /></th><th>Name</th><th>Email</th><th>Phone</th><th>Purchases</th><th></th></tr></thead>
         <tbody>
           ${list.map((c) => {
             const sales = store.sales.forCustomer(c.id);
             return `
             <tr>
+              <td><input type="checkbox" class="row-select" data-id="${c.id}" ${selected.has(c.id) ? "checked" : ""} /></td>
               <td>${escapeHtml(c.name)}</td>
               <td class="text-dim">${escapeHtml(c.email || "")}</td>
               <td class="text-dim">${escapeHtml(c.phone || "")}</td>
@@ -50,6 +69,30 @@ export function renderCustomers(container) {
         </tbody>
       </table>
     `;
+
+    const selectAllCb = qs("#select-all-checkbox", table);
+    const syncSelectAll = () => {
+      const allSelected = list.every((c) => selected.has(c.id));
+      const anySelected = list.some((c) => selected.has(c.id));
+      selectAllCb.checked = allSelected;
+      selectAllCb.indeterminate = !allSelected && anySelected;
+    };
+    syncSelectAll();
+
+    qsa(".row-select", table).forEach((cb) => {
+      cb.addEventListener("change", () => {
+        if (cb.checked) selected.add(cb.dataset.id);
+        else selected.delete(cb.dataset.id);
+        renderBulkBar();
+        syncSelectAll();
+      });
+    });
+
+    selectAllCb.addEventListener("change", (e) => {
+      if (e.target.checked) list.forEach((c) => selected.add(c.id));
+      else list.forEach((c) => selected.delete(c.id));
+      draw();
+    });
   }
 
   search.addEventListener("input", debounce(draw, 120));
@@ -57,6 +100,19 @@ export function renderCustomers(container) {
     "add-cust": () => openCustModal(),
     "edit-cust": (btn) => openCustModal(store.customers.get(btn.dataset.id)),
     "view-cust": (btn) => openCustDetail(store.customers.get(btn.dataset.id)),
+    "clear-selection": () => { selected.clear(); draw(); },
+    "delete-selected": async () => {
+      const ids = [...selected];
+      if (ids.length === 0) return;
+      const names = store.customers.list().filter((c) => ids.includes(c.id)).map((c) => c.name);
+      const label = ids.length === 1 ? `"${names[0]}"` : `these ${ids.length} customers`;
+      if (!confirm(`Delete ${label}? This can't be undone.`)) return;
+      for (const id of ids) {
+        try { await store.customers.remove(id); } catch (err) { toast("Couldn't delete a customer: " + err.message, "error"); }
+      }
+      selected.clear();
+      toast(`${ids.length} customer${ids.length === 1 ? "" : "s"} deleted`, "success");
+    },
   });
   unsubscribe = store.customers.onChange(draw);
 }

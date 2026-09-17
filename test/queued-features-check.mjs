@@ -95,6 +95,11 @@ console.log("STEP: POS cart line after dash/case-insensitive scan =", cartLine);
 if (!cartLine.includes("Item With Photo")) errors.push("POS didn't find item A via dash/case-insensitive barcode: " + cartLine);
 
 // --- Import Stock: same normalization applies there ---
+// (tab bar is hidden while on POS now, so go via Home instead of the old nav dropdown)
+await page.click("#home-btn");
+await page.waitForSelector('[data-home-tile="inventory-search"]');
+await page.click('[data-home-tile="inventory-search"]');
+await page.waitForSelector('[data-action="add-item"]');
 await goTo("inventory-import", "inventory");
 await page.waitForSelector("#imp-code");
 await page.fill("#imp-code", "BSC 000002"); // item B's barcode, with a space instead of a dash

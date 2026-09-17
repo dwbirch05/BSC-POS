@@ -161,6 +161,73 @@ export const localStore = {
     ...makeCollection(KEYS.users, new Emitter()),
   },
 
+  // Card Intake (AI card reading): demo mode has no real AI call, so this
+  // hands back believable fake results after a short simulated delay --
+  // enough to fully click through pairing, review and CSV export with zero
+  // setup. Real card identification happens in firebase-store.js via a
+  // Cloud Function once Darryl deploys one (see CARD_AI_SETUP.md).
+  cardAI: {
+    async identifyCard({ frontDataUrl, backDataUrl } = {}) {
+      await new Promise((resolve) => setTimeout(resolve, 400 + Math.random() * 700));
+
+      const pool = [
+        {
+          sport: "Basketball", player: "Marcus Reid", setName: "2023 Hoops Prime", year: "2023",
+          cardNumber: "PR-14", parallel: "Base", condition: "Near Mint",
+          title: "2023 Hoops Prime Marcus Reid #PR-14 Basketball Card NM",
+          description: "2023 Hoops Prime #PR-14 Marcus Reid. Raw (ungraded), Near Mint condition with sharp corners and clean surface. From a smoke-free collection.",
+          category: "Trading Cards - Sports",
+        },
+        {
+          sport: "Baseball", player: "Tony Alvarez", setName: "2022 Topps Chrome", year: "2022",
+          cardNumber: "112", parallel: "Refractor", condition: "Mint",
+          title: "2022 Topps Chrome Tony Alvarez #112 Refractor Baseball Mint",
+          description: "2022 Topps Chrome #112 Tony Alvarez Refractor parallel. Raw (ungraded), Mint condition, strong centering front and back with no visible flaws.",
+          category: "Trading Cards - Sports",
+        },
+        {
+          sport: "Pokemon TCG", player: "Charhound ex", setName: "Scarlet Blaze", year: "2024",
+          cardNumber: "034/198", parallel: "Holo Rare", condition: "Near Mint",
+          title: "Charhound ex 034/198 Holo Rare Scarlet Blaze Pokemon Card NM",
+          description: "Scarlet Blaze #034/198 Charhound ex, Holo Rare. Raw (ungraded), Near Mint -- light edge wear only, holo pattern clean with no scratches.",
+          category: "Trading Cards - TCG",
+        },
+        {
+          sport: "Football", player: "Devon Ashe", setName: "2021 Prizm", year: "2021",
+          cardNumber: "228", parallel: "Silver Prizm", condition: "Excellent",
+          title: "2021 Prizm Devon Ashe #228 Silver Prizm Football Rookie",
+          description: "2021 Prizm #228 Devon Ashe Silver Prizm rookie card. Raw (ungraded), Excellent condition -- minor corner softening, otherwise a clean front and back.",
+          category: "Trading Cards - Sports",
+        },
+        {
+          sport: "Magic: The Gathering", player: "Shivan Hydra", setName: "Dominion Reprint", year: "2020",
+          cardNumber: "142", parallel: "Foil", condition: "Near Mint",
+          title: "Shivan Hydra #142 Foil Dominion Reprint MTG Card NM",
+          description: "Dominion Reprint #142 Shivan Hydra, Foil. Raw (ungraded), Near Mint with minimal foil scratching, sharp corners.",
+          category: "Trading Cards - TCG",
+        },
+        {
+          sport: "Basketball", player: "Elena Voss", setName: "2020 Select", year: "2020",
+          cardNumber: "77", parallel: "Concourse", condition: "Good",
+          title: "2020 Select Elena Voss #77 Concourse Basketball Card",
+          description: "2020 Select #77 Elena Voss, Concourse parallel. Raw (ungraded), Good condition -- visible corner wear and light surface scuffing, priced accordingly.",
+          category: "Trading Cards - Sports",
+        },
+      ];
+
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      const flagged = Math.random() < 0.2;
+
+      return {
+        confident: !flagged,
+        reason: flagged
+          ? "Demo data: glare/angle made a couple of details hard to confirm -- please double-check before accepting."
+          : "",
+        ...pick,
+      };
+    },
+  },
+
   auth: {
     _emitter: new Emitter(),
     // Demo mode: no real password check, just a friendly local "login" so

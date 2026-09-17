@@ -48,7 +48,10 @@ console.log("STEP: pill =", pillText);
 if (pillText !== "Multi-Staff Show") errors.push("Expected pill 'Multi-Staff Show', got: " + pillText);
 
 // Re-open the event to confirm both checkboxes come back checked.
-await page.click('[data-nav="events"]');
+// (the tab bar is hidden while on POS now, so go via Home instead)
+await page.click("#home-btn");
+await page.waitForSelector('[data-home-tile="events"]');
+await page.click('[data-home-tile="events"]');
 await page.click('[data-action="edit-event"]');
 await page.waitForSelector(".f-user-checkbox");
 const checkedStates = await page.locator(".f-user-checkbox").evaluateAll((els) => els.map((e) => e.checked));

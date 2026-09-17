@@ -35,3 +35,24 @@ export const EMAILJS_CONFIG = {
 
 export const APP_NAME = "Big Screen Collectables";
 export const DEFAULT_EVENT_NAME = "Home Store";
+
+// ---------------------------------------------------------------------------
+// Card Intake (AI card reading) access.
+//
+// This feature uses AI to read trading card photos (sport/TCG identification,
+// condition, title & description) and is restricted to specific accounts --
+// list their login emails below (case-insensitive). Add/remove emails any
+// time and reload; no other setup needed to control who can see and use it.
+//
+// The "demo@bigscreencollectables.local" entry is the seeded demo owner
+// account, so Card Intake is reachable out of the box in demo mode.
+// ---------------------------------------------------------------------------
+export const CARD_AI_ALLOWED_EMAILS = [
+  "demo@bigscreencollectables.local",
+];
+
+export function isCardAiAllowed(user) {
+  if (!user || !user.email) return false;
+  const email = user.email.trim().toLowerCase();
+  return CARD_AI_ALLOWED_EMAILS.some((e) => e.trim().toLowerCase() === email);
+}

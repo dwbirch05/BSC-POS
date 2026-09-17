@@ -17,7 +17,10 @@ console.log("STEP: default pill =", pillText);
 if (pillText !== "Home Store") errors.push("Expected default event pill 'Home Store', got: " + pillText);
 
 // Create a dated event assigned to the signed-in demo user, covering today.
-await page.click('[data-nav="events"]');
+// (the tab bar is hidden while on POS now, so go via Home instead)
+await page.click("#home-btn");
+await page.waitForSelector('[data-home-tile="events"]');
+await page.click('[data-home-tile="events"]');
 await page.click('[data-action="add-event"]');
 await page.waitForSelector("#f-name");
 await page.fill("#f-name", "Brisbane Comic Con");

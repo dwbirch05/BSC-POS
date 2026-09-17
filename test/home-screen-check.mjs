@@ -69,13 +69,27 @@ await page.click('[data-nav="inventory-import"]');
 await page.waitForSelector("#imp-code");
 console.log("STEP: Inventory's own nav dropdown (Import Stock) still works once inside the section");
 
-// --- Home button is present on every screen, not just some ---
-for (const nav of ['[data-nav="pos"]', '[data-nav="customers"]', '[data-nav="settings"]']) {
-  await page.click(nav);
-  const homeBtnCount = await page.locator("#home-btn").count();
-  if (homeBtnCount !== 1) errors.push(`Expected #home-btn to be visible on screen reached via ${nav}`);
+// --- POS hides the shared tab bar entirely (Darryl's ask: nothing needed
+// in that top bar while checking someone out -- Home is the only way out) ---
+await page.click('[data-nav="pos"]');
+await page.waitForSelector("#barcode-input");
+const tabsVisibleOnPos = await page.locator("#tabs").isVisible();
+console.log("STEP: shared tab bar visible while on POS =", tabsVisibleOnPos);
+if (tabsVisibleOnPos) errors.push("Expected the shared tab bar to be hidden while on POS");
+let homeBtnCount = await page.locator("#home-btn").count();
+if (homeBtnCount !== 1) errors.push("Expected #home-btn to still be visible on POS even with the tab bar hidden");
+
+// --- Home button is present on every other screen too, and the tab bar is back ---
+for (const tile of ["customers", "settings"]) {
+  await page.click("#home-btn");
+  await page.waitForSelector(".home-grid");
+  await page.click(`[data-home-tile="${tile}"]`);
+  homeBtnCount = await page.locator("#home-btn").count();
+  if (homeBtnCount !== 1) errors.push(`Expected #home-btn to be visible on the ${tile} screen`);
+  const tabsVisible = await page.locator("#tabs").isVisible();
+  if (!tabsVisible) errors.push(`Expected the shared tab bar to be visible on the ${tile} screen`);
 }
-console.log("STEP: Home button confirmed present across POS, Customers, and Settings");
+console.log("STEP: Home button confirmed present across POS, Customers, and Settings; tab bar hidden only on POS");
 
 await browser.close();
 if (errors.length) { console.error("\n=== FAILURES ==="); errors.forEach((e) => console.error("- " + e)); process.exit(1); }

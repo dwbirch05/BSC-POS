@@ -76,14 +76,18 @@ js/checkin.js                Tracks who's verified themselves on this device tod
 js/views/*.js                One file per screen: Home, POS, Inventory (Search /
                               Import Stock / Import History), Customers, Events,
                               Reporting (Sales History / Product History),
-                              Settings, Login
+                              Settings, Login, Card Intake
+functions/                   Cloud Functions backend (currently just Card
+                              Intake's AI call) — see CARD_AI_SETUP.md
 icons/                       PWA icons
 test/                        Playwright checks used to verify the app (incl.
                               home-screen-check.mjs — the Home launcher and
                               Reporting access; queued-features-check.mjs —
                               thumbnails, barcode normalization, Sales History
-                              reporting; optional, needs `npm install playwright`
-                              — not required to run the app itself)
+                              reporting; card-intake-check.mjs — the AI card
+                              reading flow in demo mode; optional, needs
+                              `npm install playwright` — not required to run
+                              the app itself)
 ```
 
 There is **no build step**. Every file is plain HTML/CSS/JavaScript
@@ -194,15 +198,41 @@ barcode), and any skipped rows are all shown before anything is saved. Safe
 to re-run later with an updated file; a barcode that already exists gets
 updated rather than duplicated.
 
-## Inventory: selecting and deleting multiple items
+## Card Intake (AI card reading)
 
-Each row in Search Inventory has a checkbox, and the column header has a
-"select all" checkbox for everything currently shown (respects the search
-box, so you can search down to a category or supplier first, then select
-all of those). Selecting anything shows a small bar above the table with a
-count, a **Clear** button, and a **Delete selected** button — deleting asks
-you to confirm once, naming the item (or the count, for more than one),
-since it can't be undone.
+For shops selling trading cards (sports and TCG), **Card Intake** — a tile
+on the Home screen, visible only to accounts listed in
+`CARD_AI_ALLOWED_EMAILS` in `js/config.js` — turns a batch of card photos
+into ready-to-import inventory rows:
+
+1. Select photos two at a time per card (front, then back) — as many cards
+   as you like in one go. Cards are paired by the order you selected the
+   photos in (card naming/filenames aren't relied on), and you confirm or
+   fix the pairing before anything is processed.
+2. AI identifies each card, assesses its condition, and drafts an
+   eBay-style title and description. Confident matches are ready to accept
+   in bulk; anything uncertain is flagged with a reason for a quick manual
+   check.
+3. Accept the cards you want — each gets a real, scannable barcode — then
+   download a CSV. Price and cost are left blank on purpose: bring the CSV
+   in through **Inventory › Import Products (CSV)** (see above) and fill
+   those in there, same as any other CSV import.
+
+This works with made-up sample results in demo mode with zero setup. Real
+AI card reading needs an Anthropic API account and a small piece of
+server-side code (to keep the API key private) — see `CARD_AI_SETUP.md`
+for the one-time setup. eBay sold-listing price lookups aren't part of
+this yet — that's a separate, not-yet-built feature.
+
+## Selecting and deleting multiple items (Inventory, Customers)
+
+Both Search Inventory and Customers have a checkbox on each row, and a
+"select all" checkbox in the column header for everything currently shown
+(respects the search box, so you can search down to a category, supplier,
+or name first, then select all of those). Selecting anything shows a small
+bar above the table with a count, a **Clear** button, and a **Delete
+selected** button — deleting asks you to confirm once, naming the item or
+customer (or the count, for more than one), since it can't be undone.
 
 ## Barcodes
 

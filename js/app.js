@@ -14,6 +14,7 @@ import { renderEvents } from "./views/events.js";
 import { renderSales } from "./views/sales.js";
 import { renderProductHistory } from "./views/product-history.js";
 import { renderSettings } from "./views/settings.js";
+import { renderCardIntake } from "./views/card-intake.js";
 
 // Each top-level nav entry either renders directly, or has `children` and
 // becomes a dropdown menu (Inventory) — click the parent to open the menu,
@@ -29,7 +30,7 @@ import { renderSettings } from "./views/settings.js";
 const NAV = [
   {
     id: "home", label: "Home", hidden: true,
-    render: (main) => renderHome(main, { navigate }),
+    render: (main) => renderHome(main, { navigate, currentUser }),
   },
   {
     id: "pos", label: "POS",
@@ -55,6 +56,16 @@ const NAV = [
     render: (main) => renderProductHistory(main, { navigate }),
   },
   { id: "settings", label: "Settings", render: (main) => renderSettings(main, { currentUser }) },
+  {
+    // Not in the shared tab bar, same as Reporting above -- only reachable
+    // via the conditionally-rendered Home tile, which itself only shows for
+    // accounts in CARD_AI_ALLOWED_EMAILS (config.js). This view also
+    // double-checks that allowlist itself, so going here directly (e.g. a
+    // saved link) for a non-allowed account shows a polite "not enabled"
+    // message rather than the feature.
+    id: "card-intake", label: "Card Intake", hidden: true,
+    render: (main) => renderCardIntake(main, { currentUser }),
+  },
 ];
 
 const app = qs("#app");
@@ -163,6 +174,7 @@ function renderShell() {
     }
   });
   qs("#logout-btn", app).addEventListener("click", async () => {
+    currentRoute = "home"; // so the next person to sign in on this device lands on Home, not wherever the last person was
     await store.auth.logout();
   });
   qs("#home-btn", app).addEventListener("click", () => navigate("home"));

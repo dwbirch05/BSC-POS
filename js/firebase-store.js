@@ -26,11 +26,13 @@ const { deleteApp } = await import(`${BASE}/firebase-app.js`);
 const {
   getStorage, ref: storageRef, uploadString, getDownloadURL, deleteObject,
 } = await import(`${BASE}/firebase-storage.js`);
+const { getFunctions, httpsCallable } = await import(`${BASE}/firebase-functions.js`);
 
 const app = initializeApp(FIREBASE_CONFIG);
 const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
+const functions = getFunctions(app);
 
 try {
   await enableIndexedDbPersistence(db);
@@ -167,6 +169,21 @@ export const firebaseStore = {
       });
       await signOut(secondaryAuth);
       return { id: cred.user.uid, ...data };
+    },
+  },
+
+  // Card Intake (AI card reading): calls a Cloud Function (functions/index.js)
+  // that holds the Anthropic API key server-side -- the key must never ship
+  // to the browser. Callable functions auto-handle CORS and automatically
+  // pass the signed-in user's Firebase Auth ID token, so the function can
+  // also re-check the allowlist server-side (defense in depth on top of the
+  // client-side isCardAiAllowed() check). Needs the Cloud Function deployed
+  // and the Blaze (pay-as-you-go) plan turned on first -- see CARD_AI_SETUP.md.
+  cardAI: {
+    async identifyCard({ frontDataUrl, backDataUrl } = {}) {
+      const identifyCardFn = httpsCallable(functions, "identifyCard");
+      const res = await identifyCardFn({ frontDataUrl, backDataUrl });
+      return res.data;
     },
   },
 
