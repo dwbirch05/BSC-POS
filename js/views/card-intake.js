@@ -6,8 +6,11 @@
 // *existing* Inventory > Import Products (CSV) screen -- this view
 // deliberately never writes to inventory directly, so every card still
 // passes through that already-tested review-before-commit importer.
-// Price/cost are intentionally left blank in the export (pricing lookup is
-// a separate, not-yet-built feature).
+// Cost is intentionally left blank in the export (that's an internal
+// number, not something AI or staff set here). Price is an OPTIONAL field
+// on the review screen -- fill it in if you already know what you're
+// pricing it at, or leave it blank and set it later in Import Products
+// (CSV), same as before.
 //
 // Condition is set by staff, not the AI (changed 2026-09-17, per Darryl's
 // feedback): grading a card affects price and trust, so the AI no longer
@@ -330,6 +333,7 @@ async function startProcessing(container) {
       condition: pair.condition, // staff-set, not AI-generated -- see the file header note
       description: r.description || "",
       quantity: 1,
+      price: "", // optional -- see the file header note
       tagsStr: tags,
     };
   });
@@ -406,8 +410,9 @@ function renderReviewEntry(q) {
           <div class="field"><label>Description</label><textarea data-field="description" rows="2">${escapeHtml(q.description)}</textarea></div>
           <div class="row">
             <div class="field"><label>Quantity</label><input data-field="quantity" type="number" min="1" value="${escapeHtml(String(q.quantity))}"></div>
-            <div class="field"><label>Tags</label><input data-field="tagsStr" value="${escapeHtml(q.tagsStr)}"></div>
+            <div class="field"><label>Price (optional)</label><input data-field="price" type="number" min="0" step="0.01" placeholder="Leave blank to set later" value="${escapeHtml(q.price || "")}"></div>
           </div>
+          <div class="field"><label>Tags</label><input data-field="tagsStr" value="${escapeHtml(q.tagsStr)}"></div>
           <div class="modal-actions" style="justify-content:flex-start">
             <button class="primary" data-action="accept-card" data-id="${q.id}">Accept</button>
             <button class="danger" data-action="reject-card" data-id="${q.id}">Reject</button>
@@ -484,7 +489,7 @@ async function buildAcceptedRow(entry) {
     condition: entry.condition.trim(),
     description: entry.description.trim(),
     cost: "",
-    price: "",
+    price: entry.price && String(entry.price).trim() ? String(parseFloat(entry.price)) : "",
     quantity: String(parseInt(entry.quantity, 10) || 1),
     tags: entry.tagsStr.split(";").map((t) => t.trim()).filter(Boolean).join(";"),
     images: [frontUrl, backUrl].filter(Boolean).join(";"),
