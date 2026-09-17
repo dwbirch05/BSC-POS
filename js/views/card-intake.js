@@ -20,12 +20,19 @@
 // both the Home tile and this view are gated, so this check is defense in
 // depth in case the route is ever reached another way.
 //
-// Photo pairing: card photos don't have a reliable naming convention, so
-// pairing is based on the order files are selected -- every 2 consecutive
-// photos = one card's front + back. A visual confirm-pairing step (with
-// swap/remove per pair, plus the condition picker above) runs before
-// anything is sent to the AI, since browser multi-file-select order isn't
-// always perfectly preserved.
+// Photo pairing: which 2 photos belong to the same card is based on the
+// order photos were actually taken (file.lastModified), not the raw order
+// the browser hands back from a multi-select file picker -- some browsers
+// (notably Safari on macOS) return multi-selected files sorted by filename
+// rather than click order, which would otherwise scramble the grouping.
+//
+// Within each pair, which photo is the front vs. the back is decided by
+// filename first (if either file's name contains "front" or "back",
+// case-insensitive -- e.g. Darryl names/renames his photos that way), and
+// only falls back to "earlier capture time = front" when neither name says
+// so. A visual confirm-pairing step (with swap/remove per pair, plus the
+// condition picker above) still runs before anything is sent to the AI, as
+// a manual backstop for whatever neither signal gets right.
 //
 // AI result contract (same shape returned by both local-store.js's demo
 // mock and firebase-store.js's real Cloud Function call). Note "condition"
@@ -172,8 +179,23 @@ function wireUp(container) {
   });
 }
 
+// Filename-based front/back hint -- see the file-header note on photo
+// pairing. Only trusts a name that says ONE of the two, not both/neither.
+function nameSays(filename, word) {
+  return new RegExp(`\\b${word}\\b`, "i").test(filename || "");
+}
+function frontBackFromName(filename) {
+  const isFront = nameSays(filename, "front");
+  const isBack = nameSays(filename, "back");
+  if (isFront && !isBack) return "front";
+  if (isBack && !isFront) return "back";
+  return null; // ambiguous or no hint -- caller falls back to capture time
+}
+
 async function handleFiles(container, fileList) {
-  const files = Array.from(fileList || []);
+  // Group into pairs by capture time, not by whatever order the browser's
+  // file picker handed the files back in -- see the file-header note.
+  const files = Array.from(fileList || []).sort((a, b) => (a.lastModified || 0) - (b.lastModified || 0));
   if (files.length === 0) return;
   if (state.phase === "pairing" || state.phase === "processing") {
     toast("Finish or cancel the current batch before uploading more", "error");
@@ -193,7 +215,18 @@ async function handleFiles(container, fileList) {
 
   const pairs = [];
   for (let i = 0; i + 1 < dataUrls.length; i += 2) {
-    pairs.push({ front: dataUrls[i], back: dataUrls[i + 1], condition: DEFAULT_CONDITION });
+    // Default: earlier-taken photo is the front (files/dataUrls are already
+    // sorted by capture time above). Filename hints, when present and not
+    // contradictory, override that default.
+    let frontUrl = dataUrls[i];
+    let backUrl = dataUrls[i + 1];
+    const hintA = frontBackFromName(files[i].name);
+    const hintB = frontBackFromName(files[i + 1].name);
+    if (hintA === "back" || hintB === "front") {
+      frontUrl = dataUrls[i + 1];
+      backUrl = dataUrls[i];
+    }
+    pairs.push({ front: frontUrl, back: backUrl, condition: DEFAULT_CONDITION });
   }
   const leftover = dataUrls.length % 2 === 1 ? dataUrls[dataUrls.length - 1] : null;
 
@@ -207,7 +240,7 @@ async function handleFiles(container, fileList) {
 function renderPairing(container) {
   qs("#ci-pairing-card", container).hidden = false;
   qs("#ci-pairing-desc", container).textContent =
-    `${state.pairs.length} card${state.pairs.length === 1 ? "" : "s"} paired by upload order (front, then back). Swap or remove any that look wrong, and set each card's condition -- that's what AI will write the listing around, not something it decides itself.`;
+    `${state.pairs.length} card${state.pairs.length === 1 ? "" : "s"} paired by the order the photos were taken (front, then back). Swap or remove any that look wrong, and set each card's condition -- that's what AI will write the listing around, not something it decides itself.`;
 
   qs("#ci-pair-grid", container).innerHTML = state.pairs.map((p, i) => `
     <div class="image-thumb" style="width:auto; height:auto; padding:6px; display:flex; flex-direction:column; gap:6px; align-items:center; background:var(--panel-light)">
