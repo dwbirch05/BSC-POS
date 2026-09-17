@@ -10,9 +10,14 @@
 // defense-in-depth on top of the client-side email allowlist
 // (js/config.js's CARD_AI_ALLOWED_EMAILS).
 //
-// Input:  { frontDataUrl, backDataUrl } -- base64 JPEG data URLs
+// Input:  { frontDataUrl, backDataUrl, condition } -- base64 JPEG data URLs
+//         plus the card's condition as picked by staff on the
+//         pairing-confirm screen (one of "Mint", "Near Mint", "Excellent",
+//         "Good", "Fair", "Poor"). The AI does NOT grade the card itself --
+//         condition is a human call (it drives price and reputation), the
+//         AI just writes copy that matches the condition it's given.
 // Output: { confident, reason, sport, player, setName, year, cardNumber,
-//           parallel, condition, title, description, category }
+//           parallel, title, description, category }
 //
 // IMPORTANT: this exact contract is what js/local-store.js's demo mock and
 // js/views/card-intake.js both assume. If you change the output shape here,
@@ -41,7 +46,15 @@ const ALLOWED_EMAILS = [
   "demo@bigscreencollectables.local",
 ];
 
-const CARD_PROMPT = `You are helping a trading card shop identify raw (ungraded) sports and TCG cards from photos of the front and back, and write the listing copy for them the way an experienced, detail-oriented card seller would -- specific and persuasive, never generic or robotic-sounding.
+// Condition is supplied by the caller (a human already looked at the card),
+// not assessed by the model -- so the prompt has to be built per-request to
+// tell the model what condition to write to. The model can still describe
+// specific visual details it sees, as long as they're consistent with the
+// given grade rather than contradicting it.
+function buildCardPrompt(condition) {
+  return `You are helping a trading card shop identify raw (ungraded) sports and TCG cards from photos of the front and back, and write the listing copy for them the way an experienced, detail-oriented card seller would -- specific and persuasive, never generic or robotic-sounding.
+
+A staff member has already examined this physical card and assessed its raw (ungraded) condition as: "${condition}". Do NOT assess or second-guess the condition yourself -- use exactly this condition value in the title and description. You may still point out specific visual details you can see in the photos (centering, corner sharpness, edge wear, surface/print quality) as long as they support and are consistent with the given "${condition}" grade -- do not describe details that would contradict it.
 
 Look at both images and respond with ONLY a single JSON object (no markdown fences, no commentary) with exactly these fields:
 {
@@ -53,8 +66,7 @@ Look at both images and respond with ONLY a single JSON object (no markdown fenc
   "year": string,             // 4-digit year if visible/inferable, else ""
   "cardNumber": string,       // card number as printed, e.g. "112" or "034/198"
   "parallel": string,         // parallel/variant name if any (e.g. "Refractor", "Holo Rare"), else "Base"
-  "condition": string,        // your best assessment: one of "Mint", "Near Mint", "Excellent", "Good", "Fair", "Poor"
-  "title": string,            // an eBay-style listing title, 80 characters or fewer, covering set/player/number/parallel/condition
+  "title": string,            // an eBay-style listing title, 80 characters or fewer, covering set/player/number/parallel, and using the given condition ("${condition}") verbatim
   "description": string,      // a longer, detailed, persuasive listing description -- see the requirements below
   "category": string          // "Trading Cards - Sports" or "Trading Cards - TCG"
 }
@@ -62,12 +74,13 @@ Look at both images and respond with ONLY a single JSON object (no markdown fenc
 Requirements for "description" (this is the part buyers actually read, so put real effort into it -- don't just restate the title):
 - 4-6 sentences, not 1-2. Thin, generic descriptions are the main thing to avoid here.
 - Open by placing the card: player/character, set, year, and parallel/variant, written naturally rather than as a bare spec dump.
-- Give a specific, credible condition assessment grounded in what's actually visible in the two photos -- call out centering, corner sharpness, edge wear, surface/print quality, and any specific flaws or standout strengths you can see, rather than a single generic adjective. Different cards should read like they got a genuinely different look, not a reused template.
+- State the given condition ("${condition}") and back it up with specific, credible detail grounded in what's actually visible in the two photos -- call out centering, corner sharpness, edge wear, surface/print quality, and any specific flaws or standout strengths you can see that are consistent with that grade, rather than a single generic adjective. Different cards should read like they got a genuinely different look, not a reused template.
 - Clearly state it's raw/ungraded.
 - Close with a sentence that makes the card appealing to a collector or buyer -- why this particular card/parallel/player is worth having -- without resorting to fake urgency, unverifiable claims ("rare", "investment grade", pop-report numbers) you can't actually see evidence for in the photos, or generic filler like "a must-have for any collection."
 - Write in confident, natural prose a real seller would post, not a checklist or bullet list.
 
-If you cannot identify the card at all, set "confident": false, explain why in "reason", and still give your best-effort guesses for the rest of the fields rather than leaving them blank.`;
+If you cannot identify the card at all, set "confident": false, explain why in "reason", and still give your best-effort guesses for the rest of the fields rather than leaving them blank (still use the given condition, "${condition}", in the title/description).`;
+}
 
 exports.identifyCard = onCall({ secrets: [ANTHROPIC_API_KEY], cors: true }, async (request) => {
   const email = request.auth?.token?.email;
@@ -75,9 +88,9 @@ exports.identifyCard = onCall({ secrets: [ANTHROPIC_API_KEY], cors: true }, asyn
     throw new HttpsError("permission-denied", "This account isn't enabled for Card Intake.");
   }
 
-  const { frontDataUrl, backDataUrl } = request.data || {};
-  if (!frontDataUrl || !backDataUrl) {
-    throw new HttpsError("invalid-argument", "Both frontDataUrl and backDataUrl are required.");
+  const { frontDataUrl, backDataUrl, condition } = request.data || {};
+  if (!frontDataUrl || !backDataUrl || !condition) {
+    throw new HttpsError("invalid-argument", "frontDataUrl, backDataUrl, and condition are all required.");
   }
 
   const frontImage = parseDataUrl(frontDataUrl);
@@ -99,7 +112,7 @@ exports.identifyCard = onCall({ secrets: [ANTHROPIC_API_KEY], cors: true }, asyn
           {
             role: "user",
             content: [
-              { type: "text", text: CARD_PROMPT },
+              { type: "text", text: buildCardPrompt(condition) },
               { type: "image", source: { type: "base64", media_type: frontImage.mediaType, data: frontImage.base64 } },
               { type: "image", source: { type: "base64", media_type: backImage.mediaType, data: backImage.base64 } },
             ],
@@ -138,7 +151,6 @@ exports.identifyCard = onCall({ secrets: [ANTHROPIC_API_KEY], cors: true }, asyn
     year: parsed.year || "",
     cardNumber: parsed.cardNumber || "",
     parallel: parsed.parallel || "",
-    condition: parsed.condition || "",
     title: parsed.title || "",
     description: parsed.description || "",
     category: parsed.category || "Trading Cards",
@@ -149,7 +161,7 @@ function blankResult(reason) {
   return {
     confident: false, reason,
     sport: "", player: "", setName: "", year: "", cardNumber: "", parallel: "",
-    condition: "", title: "", description: "", category: "",
+    title: "", description: "", category: "",
   };
 }
 

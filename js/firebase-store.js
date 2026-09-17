@@ -180,9 +180,9 @@ export const firebaseStore = {
   // client-side isCardAiAllowed() check). Needs the Cloud Function deployed
   // and the Blaze (pay-as-you-go) plan turned on first -- see CARD_AI_SETUP.md.
   cardAI: {
-    async identifyCard({ frontDataUrl, backDataUrl } = {}) {
+    async identifyCard({ frontDataUrl, backDataUrl, condition } = {}) {
       const identifyCardFn = httpsCallable(functions, "identifyCard");
-      const res = await identifyCardFn({ frontDataUrl, backDataUrl });
+      const res = await identifyCardFn({ frontDataUrl, backDataUrl, condition });
       return res.data;
     },
   },

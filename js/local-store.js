@@ -95,6 +95,38 @@ function makeCollection(key, emitter) {
   };
 }
 
+// Condition-specific visual-detail phrasing for the demo mock, so the
+// canned descriptions actually read differently depending on which
+// condition the "staff" picked on the pairing-confirm screen -- mirroring
+// what the real prompt asks the model to do with a given condition.
+const CONDITION_DETAIL = {
+  Mint: "Centering looks dead-on front and back, corners are sharp with no whitening, edges are clean, and the surface is flawless under a close look -- no scuffing, print lines, or scratches.",
+  "Near Mint": "Centering is strong, corners are sharp with only the faintest hint of wear under close inspection, edges are clean, and the surface is bright with no visible scratches or print defects.",
+  Excellent: "Centering is solid, corners show light wear with just a touch of softness, edges are mostly clean with maybe a hair of wear, and the surface still has good gloss with nothing major to note.",
+  Good: "Centering is reasonable, corners show noticeable wear and some rounding, edges have visible wear along a few sides, and the surface has light scuffing but no major damage.",
+  Fair: "Centering is off to one side, corners are rounded with visible whitening, edges show real wear, and the surface has scratching or scuffing that's easy to spot at a glance.",
+  Poor: "Centering is noticeably off, corners are heavily rounded and worn, edges are rough in places, and the surface shows clear scratching, creasing, or other damage.",
+};
+
+function buildMockCopy(pick, condition) {
+  const detail = CONDITION_DETAIL[condition] || CONDITION_DETAIL["Near Mint"];
+  const parallelBit = pick.parallel && pick.parallel !== "Base" ? ` ${pick.parallel}` : "";
+  // A few of the mock setNames already start with the year (e.g. "2021
+  // Prizm") -- don't repeat it in that case.
+  const setBit = pick.setName.startsWith(pick.year) ? pick.setName : `${pick.year} ${pick.setName}`;
+
+  const title = `${setBit}${parallelBit} ${pick.player} #${pick.cardNumber} -- ${condition} (Raw/Ungraded)`.slice(0, 80);
+
+  const description =
+    `This is a ${setBit}${parallelBit} card featuring ${pick.player}, card number ${pick.cardNumber}. ` +
+    `Graded here as ${condition}: ${detail} ` +
+    `This card is raw and ungraded, sold exactly as photographed front and back so you can judge it for yourself. ` +
+    `${pick.parallel && pick.parallel !== "Base" ? `The ${pick.parallel} parallel adds a nice bit of extra shelf appeal for ${pick.player} collectors. ` : ""}` +
+    `A solid pickup for any ${pick.sport} collection or set build looking for this player and season.`;
+
+  return { title, description };
+}
+
 export const localStore = {
   mode: "demo",
 
@@ -166,57 +198,27 @@ export const localStore = {
   // enough to fully click through pairing, review and CSV export with zero
   // setup. Real card identification happens in firebase-store.js via a
   // Cloud Function once Darryl deploys one (see CARD_AI_SETUP.md).
+  //
+  // Condition is supplied by the caller (staff picked it on the
+  // pairing-confirm screen), not invented here -- see the note at the top
+  // of js/views/card-intake.js. The title/description are built to match
+  // whatever condition was given, the same way the real prompt does.
   cardAI: {
-    async identifyCard({ frontDataUrl, backDataUrl } = {}) {
+    async identifyCard({ frontDataUrl, backDataUrl, condition } = {}) {
       await new Promise((resolve) => setTimeout(resolve, 400 + Math.random() * 700));
 
       const pool = [
-        {
-          sport: "Basketball", player: "Marcus Reid", setName: "2023 Hoops Prime", year: "2023",
-          cardNumber: "PR-14", parallel: "Base", condition: "Near Mint",
-          title: "2023 Hoops Prime Marcus Reid #PR-14 Basketball Card NM",
-          description: "2023 Hoops Prime #PR-14 Marcus Reid, base parallel. This one's raw (ungraded) and grades out close to Near Mint in hand -- centering is close to 55/45 front and back, corners are sharp with no visible whitening, and the surface is clean with no scratches or print lines. Edges show only the faintest touch of wear consistent with careful handling, nothing that jumps out. A clean, well-kept copy of Reid's Prime base card that would slot straight into a set build or display without needing an upgrade.",
-          category: "Trading Cards - Sports",
-        },
-        {
-          sport: "Baseball", player: "Tony Alvarez", setName: "2022 Topps Chrome", year: "2022",
-          cardNumber: "112", parallel: "Refractor", condition: "Mint",
-          title: "2022 Topps Chrome Tony Alvarez #112 Refractor Baseball Mint",
-          description: "2022 Topps Chrome #112 Tony Alvarez, Refractor parallel. Raw (ungraded) and about as clean as this issue comes -- corners are razor sharp on all four, centering is tight on both sides, and the chrome surface is free of the scuffing and fingerprint marks that plague a lot of Chrome product straight out of the pack. No print defects or refractor pattern flaws under close inspection. A strong, display-ready copy of a popular Chrome refractor that collectors of this set will want to grab.",
-          category: "Trading Cards - Sports",
-        },
-        {
-          sport: "Pokemon TCG", player: "Charhound ex", setName: "Scarlet Blaze", year: "2024",
-          cardNumber: "034/198", parallel: "Holo Rare", condition: "Near Mint",
-          title: "Charhound ex 034/198 Holo Rare Scarlet Blaze Pokemon Card NM",
-          description: "Scarlet Blaze #034/198 Charhound ex, Holo Rare. This copy is raw (ungraded) and sits at Near Mint -- the holo pattern is bright and consistent with no visible scratching, corners are sharp, and the surface is clean aside from the faintest touch of edge wear from normal handling. Centering is solid front to back. A great-looking copy of a chase Holo Rare ex card for anyone building out this set or collecting the character.",
-          category: "Trading Cards - TCG",
-        },
-        {
-          sport: "Football", player: "Devon Ashe", setName: "2021 Prizm", year: "2021",
-          cardNumber: "228", parallel: "Silver Prizm", condition: "Excellent",
-          title: "2021 Prizm Devon Ashe #228 Silver Prizm Football Rookie",
-          description: "2021 Prizm #228 Devon Ashe, Silver Prizm rookie card. Raw (ungraded) and grading out around Excellent -- there's some visible softening on two corners and light edge wear consistent with a card that's been handled and stored, but the surface and prizm shine are still clean with no major scratches. Centering is reasonably close to even. A budget-friendly way to add this rookie parallel to a collection without paying premium-condition pricing.",
-          category: "Trading Cards - Sports",
-        },
-        {
-          sport: "Magic: The Gathering", player: "Shivan Hydra", setName: "Dominion Reprint", year: "2020",
-          cardNumber: "142", parallel: "Foil", condition: "Near Mint",
-          title: "Shivan Hydra #142 Foil Dominion Reprint MTG Card NM",
-          description: "Dominion Reprint #142 Shivan Hydra, Foil. Raw (ungraded), grading out at Near Mint -- corners are sharp, the foil surface has only minimal scratching visible at an angle under light, and there's no whitening on the edges. Centering is solid on both sides. A clean foil copy for players who want it on the table or collectors rounding out a foil playset.",
-          category: "Trading Cards - TCG",
-        },
-        {
-          sport: "Basketball", player: "Elena Voss", setName: "2020 Select", year: "2020",
-          cardNumber: "77", parallel: "Concourse", condition: "Good",
-          title: "2020 Select Elena Voss #77 Concourse Basketball Card",
-          description: "2020 Select #77 Elena Voss, Concourse parallel. Raw (ungraded) and honestly graded at Good -- there's visible corner wear on multiple corners and light surface scuffing under close inspection, plus some edge softening consistent with real handling rather than fresh-from-the-pack condition. Nothing structural like creasing, just cosmetic wear. Priced and described accordingly for a set-builder or player-collector who doesn't need gem-mint condition.",
-          category: "Trading Cards - Sports",
-        },
+        { sport: "Basketball", player: "Marcus Reid", setName: "2023 Hoops Prime", year: "2023", cardNumber: "PR-14", parallel: "Base", category: "Trading Cards - Sports" },
+        { sport: "Baseball", player: "Tony Alvarez", setName: "2022 Topps Chrome", year: "2022", cardNumber: "112", parallel: "Refractor", category: "Trading Cards - Sports" },
+        { sport: "Pokemon TCG", player: "Charhound ex", setName: "Scarlet Blaze", year: "2024", cardNumber: "034/198", parallel: "Holo Rare", category: "Trading Cards - TCG" },
+        { sport: "Football", player: "Devon Ashe", setName: "2021 Prizm", year: "2021", cardNumber: "228", parallel: "Silver Prizm", category: "Trading Cards - Sports" },
+        { sport: "Magic: The Gathering", player: "Shivan Hydra", setName: "Dominion Reprint", year: "2020", cardNumber: "142", parallel: "Foil", category: "Trading Cards - TCG" },
+        { sport: "Basketball", player: "Elena Voss", setName: "2020 Select", year: "2020", cardNumber: "77", parallel: "Concourse", category: "Trading Cards - Sports" },
       ];
 
       const pick = pool[Math.floor(Math.random() * pool.length)];
       const flagged = Math.random() < 0.2;
+      const usedCondition = condition || "Near Mint"; // fallback only if somehow called without one
 
       return {
         confident: !flagged,
@@ -224,6 +226,7 @@ export const localStore = {
           ? "Demo data: glare/angle made a couple of details hard to confirm -- please double-check before accepting."
           : "",
         ...pick,
+        ...buildMockCopy(pick, usedCondition),
       };
     },
   },

@@ -1,12 +1,20 @@
 // ---------------------------------------------------------------------------
 // Card Intake (AI card reading): upload paired front/back photos of raw
-// trading cards, let AI identify each card, judge its condition, and draft
-// a title/description, review the results, then export a CSV that goes
-// straight into the *existing* Inventory > Import Products (CSV) screen --
-// this view deliberately never writes to inventory directly, so every card
-// still passes through that already-tested review-before-commit importer.
+// trading cards, set each card's condition yourself, let AI identify the
+// card and draft a title/description around the condition you gave it,
+// review the results, then export a CSV that goes straight into the
+// *existing* Inventory > Import Products (CSV) screen -- this view
+// deliberately never writes to inventory directly, so every card still
+// passes through that already-tested review-before-commit importer.
 // Price/cost are intentionally left blank in the export (pricing lookup is
 // a separate, not-yet-built feature).
+//
+// Condition is set by staff, not the AI (changed 2026-09-17, per Darryl's
+// feedback): grading a card affects price and trust, so the AI no longer
+// issues its own condition verdict. Every pair gets a condition picked on
+// the pairing-confirm screen, *before* any AI call runs, and that's the
+// condition that ends up in the CSV row -- the AI is asked to identify the
+// card and write copy that matches the given condition, not to grade it.
 //
 // Restricted to the accounts listed in CARD_AI_ALLOWED_EMAILS (config.js) --
 // both the Home tile and this view are gated, so this check is defense in
@@ -15,13 +23,15 @@
 // Photo pairing: card photos don't have a reliable naming convention, so
 // pairing is based on the order files are selected -- every 2 consecutive
 // photos = one card's front + back. A visual confirm-pairing step (with
-// swap/remove per pair) runs before anything is sent to the AI, since
-// browser multi-file-select order isn't always perfectly preserved.
+// swap/remove per pair, plus the condition picker above) runs before
+// anything is sent to the AI, since browser multi-file-select order isn't
+// always perfectly preserved.
 //
 // AI result contract (same shape returned by both local-store.js's demo
-// mock and firebase-store.js's real Cloud Function call):
+// mock and firebase-store.js's real Cloud Function call). Note "condition"
+// is an INPUT (sent alongside the photos), not part of this output:
 //   { confident, reason, sport, player, setName, year, cardNumber,
-//     parallel, condition, title, description, category }
+//     parallel, title, description, category }
 // ---------------------------------------------------------------------------
 import { store } from "../store.js";
 import { uid, resizeImageFile, escapeHtml } from "../utils.js";
@@ -33,6 +43,8 @@ import { isCardAiAllowed } from "../config.js";
 // Must match CSV_HEADERS in views/import-products.js -- this is the contract
 // that makes the exported file importable there with zero translation.
 const CSV_HEADERS = ["name", "barcode", "category", "condition", "description", "cost", "price", "quantity", "tags", "images"];
+
+const CONDITION_OPTIONS = ["Mint", "Near Mint", "Excellent", "Good", "Fair", "Poor"];
 
 let state = null;
 
@@ -55,7 +67,7 @@ export function renderCardIntake(container, { currentUser } = {}) {
 function freshState() {
   return {
     phase: "upload", // "upload" | "pairing" | "processing" | "review"
-    pairs: [],        // [{ front: dataUrl, back: dataUrl }]
+    pairs: [],        // [{ front: dataUrl, back: dataUrl, condition: "" }]
     leftover: null,    // dataUrl of an unpaired trailing photo, if any
     queue: [],          // [{ id, front, back, confident, reason, name, category, condition, description, quantity, tagsStr }]
     accepted: [],         // CSV-ready row objects
@@ -131,14 +143,28 @@ function wireUp(container) {
   });
 
   // Editable review fields update the in-memory queue entry directly -- no
-  // re-render needed for typing, so this stays responsive with a big batch.
-  container.addEventListener("input", (e) => {
+  // re-render needed for typing/selecting, so this stays responsive with a
+  // big batch. Bound to both "input" (live typing) and "change" (selects,
+  // which don't reliably fire "input" in every browser).
+  const updateQueueField = (e) => {
     const field = e.target.dataset.field;
     const id = e.target.closest("[data-id]")?.dataset.id;
     if (!field || !id) return;
     const entry = state.queue.find((q) => q.id === id);
     if (!entry) return;
     entry[field] = e.target.value;
+  };
+  container.addEventListener("input", updateQueueField);
+
+  container.addEventListener("change", (e) => {
+    // The per-pair condition picker on the pairing-confirm screen.
+    const idx = e.target.dataset.pairCondition;
+    if (idx !== undefined) {
+      const pair = state.pairs[Number(idx)];
+      if (pair) pair.condition = e.target.value;
+      return;
+    }
+    updateQueueField(e);
   });
 }
 
@@ -163,7 +189,7 @@ async function handleFiles(container, fileList) {
 
   const pairs = [];
   for (let i = 0; i + 1 < dataUrls.length; i += 2) {
-    pairs.push({ front: dataUrls[i], back: dataUrls[i + 1] });
+    pairs.push({ front: dataUrls[i], back: dataUrls[i + 1], condition: "" });
   }
   const leftover = dataUrls.length % 2 === 1 ? dataUrls[dataUrls.length - 1] : null;
 
@@ -177,7 +203,7 @@ async function handleFiles(container, fileList) {
 function renderPairing(container) {
   qs("#ci-pairing-card", container).hidden = false;
   qs("#ci-pairing-desc", container).textContent =
-    `${state.pairs.length} card${state.pairs.length === 1 ? "" : "s"} paired by upload order (front, then back). Swap or remove any that look wrong.`;
+    `${state.pairs.length} card${state.pairs.length === 1 ? "" : "s"} paired by upload order (front, then back). Swap or remove any that look wrong, and set each card's condition -- that's what AI will write the listing around, not something it decides itself.`;
 
   qs("#ci-pair-grid", container).innerHTML = state.pairs.map((p, i) => `
     <div class="image-thumb" style="width:auto; height:auto; padding:6px; display:flex; flex-direction:column; gap:6px; align-items:center; background:var(--panel-light)">
@@ -186,6 +212,10 @@ function renderPairing(container) {
         <img src="${p.back}" style="width:70px; height:70px; object-fit:cover; border-radius:6px" title="Back">
       </div>
       <span class="text-dim" style="font-size:11px">Card ${i + 1}</span>
+      <select class="select-compact" style="font-size:12px; padding:4px 6px;" data-pair-condition="${i}">
+        <option value="" ${p.condition ? "" : "selected"}>Select condition…</option>
+        ${CONDITION_OPTIONS.map((c) => `<option value="${c}" ${p.condition === c ? "selected" : ""}>${c}</option>`).join("")}
+      </select>
       <div style="display:flex; gap:4px;">
         <button class="ghost" style="padding:4px 8px; font-size:11px" data-action="swap-pair" data-idx="${i}">Swap</button>
         <button class="danger" style="padding:4px 8px; font-size:11px" data-action="remove-pair" data-idx="${i}">Remove</button>
@@ -223,6 +253,12 @@ function cancelPairing(container) {
 
 async function startProcessing(container) {
   if (state.pairs.length === 0) return;
+  const missing = state.pairs.filter((p) => !p.condition).length;
+  if (missing > 0) {
+    toast(`Set a condition for every card first -- ${missing} still need one`, "error");
+    return;
+  }
+
   const pairs = state.pairs;
   state.phase = "processing";
   qs("#ci-pairing-card", container).hidden = true;
@@ -234,7 +270,7 @@ async function startProcessing(container) {
   const results = await runWithConcurrency(pairs, 3, async (pair) => {
     let result;
     try {
-      result = await store.cardAI.identifyCard({ frontDataUrl: pair.front, backDataUrl: pair.back });
+      result = await store.cardAI.identifyCard({ frontDataUrl: pair.front, backDataUrl: pair.back, condition: pair.condition });
     } catch (err) {
       console.warn("Card AI identify failed", err);
       result = { confident: false, reason: "Couldn't process this card automatically -- enter its details manually." };
@@ -255,7 +291,7 @@ async function startProcessing(container) {
       reason: r.reason || "",
       name: r.title || "",
       category: r.category || "Trading Cards",
-      condition: r.condition || "",
+      condition: pair.condition, // staff-set, not AI-generated -- see the file header note
       description: r.description || "",
       quantity: 1,
       tagsStr: tags,
@@ -324,7 +360,12 @@ function renderReviewEntry(q) {
           </div>
           <div class="row">
             <div class="field"><label>Category</label><input data-field="category" value="${escapeHtml(q.category)}"></div>
-            <div class="field"><label>Condition</label><input data-field="condition" value="${escapeHtml(q.condition)}"></div>
+            <div class="field">
+              <label>Condition</label>
+              <select data-field="condition">
+                ${CONDITION_OPTIONS.map((c) => `<option value="${c}" ${q.condition === c ? "selected" : ""}>${c}</option>`).join("")}
+              </select>
+            </div>
           </div>
           <div class="field"><label>Description</label><textarea data-field="description" rows="2">${escapeHtml(q.description)}</textarea></div>
           <div class="row">

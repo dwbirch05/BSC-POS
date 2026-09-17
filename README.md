@@ -207,12 +207,16 @@ into ready-to-import inventory rows:
 
 1. Select photos two at a time per card (front, then back) — as many cards
    as you like in one go. Cards are paired by the order you selected the
-   photos in (card naming/filenames aren't relied on), and you confirm or
-   fix the pairing before anything is processed.
-2. AI identifies each card, assesses its condition, and drafts an
-   eBay-style title and description. Confident matches are ready to accept
-   in bulk; anything uncertain is flagged with a reason for a quick manual
-   check.
+   photos in (card naming/filenames aren't relied on). On the pairing
+   confirm screen you also pick each card's condition (Mint / Near Mint /
+   Excellent / Good / Fair / Poor) — condition is a human call, not an AI
+   guess, since it drives price and reputation — before anything is
+   processed.
+2. AI identifies each card and drafts an eBay-style title and description
+   built around the condition you gave it. Confident matches are ready to
+   accept in bulk; anything uncertain is flagged with a reason for a quick
+   manual check. Condition stays editable (same dropdown) on the review
+   screen too, in case you want to adjust it after a closer look.
 3. Accept the cards you want — each gets a real, scannable barcode — then
    download a CSV. Price and cost are left blank on purpose: bring the CSV
    in through **Inventory › Import Products (CSV)** (see above) and fill
